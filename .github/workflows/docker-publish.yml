@@ -12,55 +12,46 @@ on:
   workflow_dispatch: # 支持在 GitHub 网页上手动一键触发
 
 env:
-  REGISTRY: ccr.ccs.tencentyun.com
-  IMAGE_PREFIX: ccr.ccs.tencentyun.com/tcb-100006869986-ccqi/dvvbhub
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ghcr.io/dvvb258
+
+# 开启 GitHub Packages 推送权限 (内置免配置)
+permissions:
+  contents: read
+  packages: write
 
 jobs:
-  publish-images:
-    name: Build & Push Images to Tencent TCR
+  publish-service:
+    name: Build & Push (${{ matrix.service.name }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - name: chakra-blog-webapi
+            context: ./chakra_api_back_end
+            build_args: ""
+          - name: chakra-blog-react
+            context: ./chakra_front_end
+            build_args: "--build-arg NEXT_PUBLIC_SITE_URL=http://localhost:3000 --build-arg INTERNAL_API_BASE_URL=http://blogapi:8080/api"
+          - name: chakra-blog-management
+            context: ./chakra_management_front_end
+            build_args: "--build-arg VITE_BLOG_FRONT_URL=http://localhost:3000"
+
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
 
-      - name: 登录腾讯云 TCR 镜像仓库
-        env:
-          TCR_USER: ${{ secrets.TCR_USERNAME }}
-          TCR_PWD: ${{ secrets.TCR_PASSWORD }}
+      - name: 登录 GitHub Container Registry (GHCR)
         run: |
-          printf '%s\n' "$TCR_PWD" | docker login ${{ env.REGISTRY }} --username "$TCR_USER" --password-stdin
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ${{ env.REGISTRY }} -u "${{ github.actor }}" --password-stdin
 
-      - name: 1. 构建并推送 .NET 10 WebAPI 后端镜像
+      - name: 并行构建并推送 [${{ matrix.service.name }}]
         run: |
-          echo ">>> 正在构建 WebAPI 镜像 ..."
-          docker build -t ${{ env.IMAGE_PREFIX }}:chakra-blog-webapi ./chakra_api_back_end
-          echo ">>> 正在推送 WebAPI 镜像至腾讯云 ..."
-          docker push ${{ env.IMAGE_PREFIX }}:chakra-blog-webapi
+          echo ">>> 正在构建 ${{ matrix.service.name }} 镜像 ..."
+          docker build ${{ matrix.service.build_args }} -t ${{ env.IMAGE_PREFIX }}/${{ matrix.service.name }}:latest ${{ matrix.service.context }}
 
-      - name: 2. 构建并推送 Next.js 博客展示端镜像
-        run: |
-          echo ">>> 正在构建展示端前端镜像 ..."
-          docker build \
-            --build-arg NEXT_PUBLIC_SITE_URL=http://localhost:3000 \
-            --build-arg INTERNAL_API_BASE_URL=http://blogapi:8080/api \
-            -t ${{ env.IMAGE_PREFIX }}:chakra-blog-react ./chakra_front_end
-          echo ">>> 正在推送展示端前端镜像至腾讯云 ..."
-          docker push ${{ env.IMAGE_PREFIX }}:chakra-blog-react
+          echo ">>> 正在秒级推送 ${{ matrix.service.name }} 至 GHCR (内网高速) ..."
+          docker push ${{ env.IMAGE_PREFIX }}/${{ matrix.service.name }}:latest
 
-      - name: 3. 构建并推送 React 管理后台前端镜像
-        run: |
-          echo ">>> 正在构建管理后台前端镜像 ..."
-          docker build \
-            --build-arg VITE_BLOG_FRONT_URL=http://localhost:3000 \
-            -t ${{ env.IMAGE_PREFIX }}:chakra-blog-management ./chakra_management_front_end
-          echo ">>> 正在推送管理后台前端镜像至腾讯云 ..."
-          docker push ${{ env.IMAGE_PREFIX }}:chakra-blog-management
-
-      - name: 镜像推送结果反馈
-        run: |
-          echo "=================================================="
-          echo "✓ 3 大服务镜像已全量成功推送到腾讯云公开仓库！"
-          echo " - ${{ env.IMAGE_PREFIX }}:chakra-blog-webapi"
-          echo " - ${{ env.IMAGE_PREFIX }}:chakra-blog-react"
-          echo " - ${{ env.IMAGE_PREFIX }}:chakra-blog-management"
-          echo "=================================================="
+          echo "✓ [${{ matrix.service.name }}] 推送成功！"
