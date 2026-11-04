@@ -1,0 +1,86 @@
+# ==============================================================================
+# Git Ignore Configuration for Chakra Blog Full Stack Project
+# ==============================================================================
+
+# OS & IDE temporary files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+[Tt]humbs.db
+
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.claude/
+.pi/
+skills-lock.json
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.userprefs
+.vs/
+.worktrees/
+*.sw?
+*.ntvs*
+*.njsproj
+
+# .NET Build & Publish outputs
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+publish/
+artifacts/
+**/Properties/launchSettings.json
+*.nupkg
+*.nuget.props
+*.nuget.targets
+
+# Node & Frontend Build outputs
+node_modules/
+.pnp
+.pnp.js
+dist/
+dist-ssr/
+build/
+.next/
+out/
+.vite/
+*.tsbuildinfo
+
+# Local Environment Variables & Secrets (Keep .env.example tracked)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+appsettings.Production.json
+*.local.json
+
+# Logs (只忽略根级生成的日志目录，不得误伤源码命名空间目录)
+/logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+!**/Application/Logs/**
+
+# Database & Uploads Volume Local Data
+postgres_data/
+uploads/
+uploads_data/
+*.sqlite
+*.sqlite3
+*.db

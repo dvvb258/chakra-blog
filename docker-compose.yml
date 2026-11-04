@@ -1,0 +1,145 @@
+services:
+  # ============================================================================
+  # 1. PostgreSQL 关系型数据库 (自动执行建表与初始超级管理员注入)
+  # ============================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: chakra-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-blog}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      TZ: Asia/Shanghai
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./chakra_api_back_end/scripts/sql/init.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
+    ports:
+      # 默认仅绑定宿主机本地回环（127.0.0.1），防范公网数据库端口扫描爆破；若需公网直连可改为 "${POSTGRES_PORT:-5432}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    networks:
+      - chakra_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-blog}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ============================================================================
+  # 2. .NET 10 WebAPI 后端核心服务 (默认 Local 存储 + 单机内存降级)
+  # ============================================================================
+  blogapi:
+    build:
+      context: ./chakra_api_back_end
+      dockerfile: Dockerfile
+    container_name: chakra-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      TZ: Asia/Shanghai
+      # 数据库连接（三大模块自动复用统一步调，单库开箱即用）
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${POSTGRES_DB:-blog};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres};Keepalive=30;Minimum Pool Size=1;Connection Idle Lifetime=300;
+      # Redis 弹性缓存（可选：开启后分布式任务生效，关闭时自动降级）
+      Redis__Enabled: "${REDIS_ENABLED:-false}"
+      ConnectionStrings__Redis: "${REDIS_CONNECTION_STRING:-}"
+      # 媒体存储模式：默认 Local 本地磁盘存储，可选 S3
+      Storage__Provider: "${STORAGE_PROVIDER:-Local}"
+      Storage__S3__Endpoint: "${S3_ENDPOINT:-}"
+      Storage__S3__Bucket: "${S3_BUCKET:-}"
+      Storage__S3__AccessKey: "${S3_ACCESS_KEY:-}"
+      Storage__S3__SecretKey: "${S3_SECRET_KEY:-}"
+      Storage__S3__PublicUrl: "${S3_PUBLIC_URL:-}"
+      # AI 定时发文任务（默认关闭）
+      AISettings__AutoGenerateEnabled: "${AI_AUTOGEN_ENABLED:-false}"
+      AISettings__Key: "${AI_KEY:-}"
+      AISettings__Endpoint: "${AI_ENDPOINT:-}"
+      AISettings__ModelName: "${AI_MODEL_NAME:-}"
+      AISettings__RssSourcesStr: "${AI_RSS_SOURCES:-}"
+      # 第三方 GitHub 登录（默认关闭）
+      Identity__GitHub__Enabled: "${GITHUB_ENABLED:-false}"
+      Identity__GitHub__ClientId: "${GITHUB_CLIENT_ID:-}"
+      Identity__GitHub__ClientSecret: "${GITHUB_CLIENT_SECRET:-}"
+      Identity__GitHub__RedirectUri: "${GITHUB_REDIRECT_URI:-http://localhost:3101/login}"
+      # 运维控制面板开关与认证凭据
+      Swagger__Enabled: "${SWAGGER_ENABLED:-true}"
+      Hangfire__Dashboard__Enabled: "${HANGFIRE_DASHBOARD_ENABLED:-true}"
+      Hangfire__Dashboard__Username: "${HANGFIRE_USERNAME:-admin}"
+      Hangfire__Dashboard__Password: "${HANGFIRE_PASSWORD:-AdminPassword123!}"
+      # JWT 安全配置（生产部署请务必在 .env 中修改为随机强密钥）
+      JwtSettings__Secret: ${JWT_SECRET:-CHANGE_ME_SecureJwtSecretKeyMustBeLongerThan32Bytes!}
+      # 跨域白名单（默认内置本地端口并自动追加 NEXT_PUBLIC_SITE_URL；支持逗号分隔额外公网域名）
+      CORS_ALLOWED_ORIGINS: "${CORS_ALLOWED_ORIGINS:-}"
+      NEXT_PUBLIC_SITE_URL: "${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}"
+    volumes:
+      - uploads_data:/app/uploads
+    ports:
+      - "${API_PORT:-5000}:8080"
+    networks:
+      - chakra_network
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:8080/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  # ============================================================================
+  # 3. 博客管理后台 (React 19 + Vite 6 + Nginx 反向代理)
+  # ============================================================================
+  admin:
+    build:
+      context: ./chakra_management_front_end
+      dockerfile: Dockerfile
+      args:
+        VITE_BLOG_FRONT_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+    container_name: chakra-admin
+    restart: unless-stopped
+    depends_on:
+      blogapi:
+        condition: service_healthy
+    environment:
+      API_UPSTREAM: http://blogapi:8080
+    ports:
+      - "${ADMIN_PORT:-3101}:80"
+    networks:
+      - chakra_network
+
+  # ============================================================================
+  # 4. 博客展示端 (Next.js 15 App Router + React 19 + Tailwind CSS)
+  # ============================================================================
+  blog:
+    build:
+      context: ./chakra_front_end
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+        INTERNAL_API_BASE_URL: ${INTERNAL_API_BASE_URL:-http://blogapi:8080/api}
+    container_name: chakra-blog
+    restart: unless-stopped
+    depends_on:
+      blogapi:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      # Next.js 服务端直连后端 API 容器
+      INTERNAL_API_BASE_URL: http://blogapi:8080/api
+      # 公开站点域名/地址
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+    ports:
+      - "${BLOG_PORT:-3000}:3000"
+    networks:
+      - chakra_network
+
+networks:
+  chakra_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  uploads_data:
+    driver: local

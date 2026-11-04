@@ -1,0 +1,97 @@
+/* AdminLayout 清爽白调布局 */
+.layoutRoot {
+  min-height: 100vh;
+  background-color: #f8fafc;
+}
+
+.sider {
+  background: #ffffff !important;
+  border-right: 1px solid #e2e8f0;
+  box-shadow: 1px 0 3px rgba(0, 0, 0, 0.02);
+}
+
+.logoContainer {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid #f1f5f9;
+  overflow: hidden;
+  transition: all 0.2s;
+}
+
+.logoBadge {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #0284c7, #38bdf8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 16px;
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.25);
+  flex-shrink: 0;
+}
+
+.logoTextWrapper {
+  margin-left: 12px;
+  white-space: nowrap;
+}
+
+.logoTitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: 0.5px;
+  line-height: 1.2;
+}
+
+.logoSubtitle {
+  font-size: 11px;
+  color: #94a3b8;
+  font-family: monospace;
+}
+
+.header {
+  height: 64px;
+  padding: 0 24px;
+  background: #ffffff !important;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.collapseTrigger {
+  color: #64748b;
+  font-size: 16px;
+}
+
+.collapseTrigger:hover {
+  color: #0284c7;
+}
+
+.userMenuTrigger {
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+  transition: background-color 0.2s;
+}
+
+.userMenuTrigger:hover {
+  background-color: #f1f5f9;
+}
+
+.userName {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.contentWrapper {
+  padding: 24px;
+  background: #f8fafc;
+  min-height: calc(100vh - 64px);
+}

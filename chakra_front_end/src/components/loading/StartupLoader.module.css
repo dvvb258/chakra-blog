@@ -1,0 +1,166 @@
+.startup {
+  position: fixed;
+  z-index: 9999;
+  isolation: isolate;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #fffdfa;
+  color: rgb(var(--theme-primary, 245 158 11));
+  transition: opacity 300ms ease, visibility 300ms ease;
+}
+
+:global(html.dark) .startup {
+  background: #090613;
+  color: rgb(var(--theme-primary, 6 182 212));
+}
+
+.startup::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+  background-image: 
+    radial-gradient(#fde68a 1px, transparent 1px), 
+    radial-gradient(#fef3c7 1px, #fffdfa 1px);
+  background-size: 32px 32px;
+  background-position: 0 0, 16px 16px;
+}
+
+:global(html.dark) .startup::before {
+  background-image: 
+    radial-gradient(#1e1b4b 1px, transparent 1px), 
+    radial-gradient(#0f172a 1px, #090613 1px);
+}
+
+/* 自动淡出动画，即使 JS 编译中也保证在 850ms 后自动隐去 */
+.startupAutoFade {
+  animation: startupFadeOut 300ms ease 850ms forwards;
+}
+
+@keyframes startupFadeOut {
+  0% {
+    opacity: 1;
+    visibility: visible;
+  }
+  100% {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+}
+
+.avatarContainer {
+  position: relative;
+  width: 110px;
+  height: 110px;
+  margin-bottom: 20px;
+  animation: bounce 600ms ease-in-out infinite alternate;
+}
+
+.avatarImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  box-shadow: 0 10px 25px -5px rgba(var(--theme-shadow-rgb, 245 158 11), 0.35);
+  border: 4px solid #ffffff;
+}
+
+:global(html.dark) .avatarImg {
+  border-color: #1e1b4b;
+  box-shadow: 0 10px 25px -5px rgba(var(--theme-shadow-rgb, 6 182 212), 0.45);
+}
+
+.connecting {
+  font-size: clamp(20px, 2.2vw, 28px);
+  font-weight: 850;
+  font-style: italic;
+  letter-spacing: -0.04em;
+  color: #1c1917;
+}
+
+:global(html.dark) .connecting {
+  color: #f8fafc;
+}
+
+.progress {
+  width: 190px;
+  height: 5px;
+  margin-top: 16px;
+  overflow: hidden;
+  background: rgba(var(--theme-shadow-rgb, 245 158 11), 0.15);
+  transform: skewX(-15deg);
+  border-radius: 2px;
+}
+
+:global(html.dark) .progress {
+  background: rgba(var(--theme-shadow-rgb, 6 182 212), 0.2);
+}
+
+/* 原生 CSS 驱动进度条：实体主题色流动 */
+.progressBarAuto {
+  display: block;
+  height: 100%;
+  background: rgb(var(--theme-primary, 245 158 11));
+  transform-origin: left;
+  animation: startupFill 720ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+:global(html.dark) .progressBarAuto {
+  background: rgb(var(--theme-primary, 6 182 212));
+}
+
+@keyframes startupFill {
+  0% {
+    transform: scaleX(0.12);
+  }
+  30% {
+    transform: scaleX(0.48);
+  }
+  65% {
+    transform: scaleX(0.86);
+  }
+  100% {
+    transform: scaleX(1);
+  }
+}
+
+.percentAuto {
+  margin-top: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  letter-spacing: 0.05em;
+  color: rgb(var(--theme-primary, 245 158 11));
+}
+
+:global(html.dark) .percentAuto {
+  color: rgb(var(--theme-primary, 6 182 212));
+}
+
+.triangles {
+  display: inline-block;
+  width: 28px;
+  height: 24px;
+  margin-top: 12px;
+  color: rgb(var(--theme-primary, 245 158 11));
+  overflow: visible;
+  vertical-align: middle;
+}
+
+:global(html.dark) .triangles {
+  color: rgb(var(--theme-primary, 6 182 212));
+}
+
+@keyframes bounce {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-8px);
+  }
+}

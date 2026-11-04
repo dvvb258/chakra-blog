@@ -1,0 +1,16 @@
+<Solution>
+  <Folder Name="/ApiHost/">
+    <Project Path="src/ApiHost/ApiHost.csproj" />
+  </Folder>
+  <Folder Name="/Modules/">
+    <Project Path="src/Modules/Content/Content.csproj" />
+    <Project Path="src/Modules/Identity/Identity.csproj" />
+    <Project Path="src/Modules/Logging/Logging.csproj" />
+  </Folder>
+  <Folder Name="/SharedKernel/">
+    <Project Path="src/SharedKernel/SharedKernel.csproj" />
+  </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="tests/Chakra.Tests.Unit/Chakra.Tests.Unit.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,27 @@
+root = true
+
+# ==============================================================================
+# 通用配置 (所有文件)
+# ==============================================================================
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# ==============================================================================
+# 前端工程与根目录脚本 (TypeScript / JavaScript / JSON / CSS / Markdown / YAML)
+# ==============================================================================
+[*.{js,jsx,ts,tsx,mjs,cjs}]
+indent_size = 2
+
+[*.{json,json5,yaml,yml}]
+indent_size = 2
+
+[*.{css,scss,less}]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+indent_size = 2

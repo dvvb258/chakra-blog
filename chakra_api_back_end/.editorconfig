@@ -1,0 +1,70 @@
+root = true
+
+[*.cs]
+#### --- 基础配置 --- ####
+# 字符编码与缩进
+charset = utf-8
+indent_style = space
+indent_size = 4
+insert_final_newline = true
+
+#### --- 代码分析严重性设置 --- ####
+# 默认启用所有 .NET 分析规则
+dotnet_analyzer_diagnostics.category-all.severity = warning
+
+#### --- 迁移自 Ruleset 的自定义规则 (Action="None") --- ####
+
+# Microsoft.Usage (CA 规则)
+dotnet_diagnostic.CA1032.severity = none # 异常构造函数
+dotnet_diagnostic.CA1716.severity = none # 命名避免保留字
+dotnet_diagnostic.CA2229.severity = none # 序列化构造函数
+dotnet_diagnostic.CA2237.severity = none # ISerializable 标记
+
+# StyleCop.Analyzers (SA 规则)
+dotnet_diagnostic.SA1101.severity = none # 强制使用 this. 前缀
+dotnet_diagnostic.SA1117.severity = none # 参数换行限制
+dotnet_diagnostic.SA1121.severity = none # 强制使用内置类型别名
+dotnet_diagnostic.SA1122.severity = none # 强制使用 String.Empty
+dotnet_diagnostic.SA1200.severity = none # Using 必须在命名空间内
+dotnet_diagnostic.SA1201.severity = none # 成员排序
+dotnet_diagnostic.SA1202.severity = none # 成员可见性排序
+dotnet_diagnostic.SA1203.severity = none # 常量静态成员排序
+dotnet_diagnostic.SA1204.severity = none # 静态非静态排序
+dotnet_diagnostic.SA1208.severity = none # System 使用指令排序
+dotnet_diagnostic.SA1214.severity = none # 只读成员排序
+dotnet_diagnostic.SA1309.severity = none # 字段禁止以下划线开头
+dotnet_diagnostic.SA1310.severity = none # 字段名禁止包含下划线
+dotnet_diagnostic.SA1401.severity = none # 字段必须为私有
+dotnet_diagnostic.SA1404.severity = none # 抑制警告必须有理由
+dotnet_diagnostic.SA1413.severity = none # 强制使用尾随逗号
+dotnet_diagnostic.SA1501.severity = none # 禁止单行大括号
+dotnet_diagnostic.SA1503.severity = none # 禁止省略大括号
+dotnet_diagnostic.SA1600.severity = none # 必须有文档注释
+dotnet_diagnostic.SA1612.severity = none # 参数文档顺序
+dotnet_diagnostic.SA1615.severity = none # 返回值文档
+dotnet_diagnostic.SA1618.severity = none # 泛型文档
+dotnet_diagnostic.SA1625.severity = none # 禁止复制文档
+dotnet_diagnostic.SA1627.severity = none # 异常文档不能为空
+dotnet_diagnostic.SA1633.severity = none # 必须有文件头
+dotnet_diagnostic.SA1652.severity = none # 启用 XML 文档输出
+dotnet_diagnostic.SA1124.severity = none # 禁止使用 Region
+dotnet_diagnostic.SA1629.severity = none # 文档必须以句号结尾
+dotnet_diagnostic.SA1623.severity = none # 属性文档前缀限制
+dotnet_diagnostic.SA1642.severity = none # 构造函数文档标准文本（允许中文注释）
+
+# 对应 Action="Info"
+dotnet_diagnostic.SA1516.severity = suggestion # 成员之间必须有空行
+
+# 自动清理没用的 using
+dotnet_diagnostic.IDE0005.severity = warning # 删除多余的 using
+
+# 指示 using 应该放在命名空间外部
+csharp_using_directive_placement = outside_namespace:warning
+
+# 顺便把命名空间改为 .NET 10 推荐的”文件范围”格式（去掉大括号，减少缩进）
+csharp_style_namespace_declarations = file_scoped:warning
+
+# EF Core 自动生成的迁移文件使用块命名空间，这里覆盖为不强制
+[**/Migrations/*.cs]
+csharp_style_namespace_declarations = file_scoped:silent
+dotnet_diagnostic.IDE0005.severity = none

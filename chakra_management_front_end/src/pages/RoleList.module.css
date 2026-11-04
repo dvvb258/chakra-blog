@@ -1,0 +1,38 @@
+.container {
+  padding: 0 0 32px 0;
+}
+
+.welcomeBanner {
+  background: linear-gradient(135deg, rgba(2, 132, 199, 0.08) 0%, rgba(14, 165, 233, 0.03) 100%);
+  border: 1px solid rgba(2, 132, 199, 0.15);
+  border-radius: 12px;
+  padding: 24px 28px;
+  margin-bottom: 24px;
+}
+
+.welcomeTitle {
+  margin: 0 0 8px 0 !important;
+  color: #0f172a !important;
+  font-weight: 700;
+}
+
+.welcomeSubtitle {
+  margin: 0 !important;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.roleCard {
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+}
+
+.treeContainer {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 16px;
+  background: #f8fafc;
+  max-height: 280px;
+  overflow-y: auto;
+}
