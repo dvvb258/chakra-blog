@@ -21,7 +21,7 @@
 
 ## 方式一：Docker Compose 一键部署（生产推荐）
 
-### 1. 配置环境变量
+### 1. 配置环境变量（可选）
 ```bash
 cp .env.example .env
 # 生产环境安全建议：请修改 .env 中的：
@@ -30,7 +30,16 @@ cp .env.example .env
 # 3. HANGFIRE_PASSWORD（后台任务控制面板 Basic 认证密码）
 ```
 
-### 2. 构建并启动服务
+### 2. 启动服务（提供两种运行模式）
+
+#### 模式 A：预构建镜像模式（生产推荐）
+直接拉取预先构建发布的官方标准镜像运行，无需在宿主机安装编译依赖环境，资源开销低且部署启动迅速：
+```bash
+docker compose up -d
+```
+
+#### 模式 B：本地源码构建模式（二次开发）
+若修改了展示端个人配置（如 `src/config/site.ts`）、UI 素材或后端业务代码，可传入 `--build` 参数在本地执行全量构建后启动：
 ```bash
 docker compose up -d --build
 ```

@@ -75,16 +75,19 @@ chakra-blog/
 
 ---
 
-## 🚀 极速起步 (Quick Start)
+## 🚀 快速起步 (Quick Start)
 
-### 方式一：Docker Compose 一键启动（生产推荐）
+### 方式一：Docker Compose 容器化部署（生产推荐）
 
 ```bash
-# 1. 复制环境变量配置文件
+# 1. 复制环境变量配置文件（可选，默认配置开箱即用）
 cp .env.example .env
 
-# 2. 构建并启动容器组
-docker compose up -d --build
+# 2. 启动服务（默认自动拉取预构建标准镜像）
+docker compose up -d
+
+# 注：若对前端或后端源码进行了二次开发修改，可通过 --build 参数在本地重新构建：
+# docker compose up -d --build
 ```
 
 启动完成后即可访问：
