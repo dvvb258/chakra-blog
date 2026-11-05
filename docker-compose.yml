@@ -29,7 +29,7 @@ services:
   # 2. .NET 10 WebAPI 后端核心服务 (默认 Local 存储 + 单机内存降级)
   # ============================================================================
   blogapi:
-    image: ccr.ccs.tencentyun.com/tcb-100006869986-ccqi/dvvbhub:chakra-blog-webapi
+    image: ghcr.io/dvvb258/chakra-blog-webapi:latest
     build:
       context: ./chakra_api_back_end
       dockerfile: Dockerfile
@@ -91,7 +91,7 @@ services:
   # 3. 博客管理后台 (React 19 + Vite 6 + Nginx 反向代理)
   # ============================================================================
   admin:
-    image: ccr.ccs.tencentyun.com/tcb-100006869986-ccqi/dvvbhub:chakra-blog-management
+    image: ghcr.io/dvvb258/chakra-blog-management:latest
     build:
       context: ./chakra_management_front_end
       dockerfile: Dockerfile
@@ -113,7 +113,7 @@ services:
   # 4. 博客展示端 (Next.js 15 App Router + React 19 + Tailwind CSS)
   # ============================================================================
   blog:
-    image: ccr.ccs.tencentyun.com/tcb-100006869986-ccqi/dvvbhub:chakra-blog-react
+    image: ghcr.io/dvvb258/chakra-blog-react:latest
     build:
       context: ./chakra_front_end
       dockerfile: Dockerfile
