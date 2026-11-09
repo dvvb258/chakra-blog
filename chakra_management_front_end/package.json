@@ -15,7 +15,7 @@
     "@uiw/react-md-editor": "^4.1.0",
     "antd": "^5.24.7",
     "axios": "^1.13.6",
-    "dayjs": "^1.11.13",
+    "dayjs": "^1.11.23",
     "echarts": "^6.1.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
