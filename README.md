@@ -20,8 +20,9 @@
 [![Tailwind CSS](https://img.shields.io/badge/TailwindCSS-3.4-38bdf8?style=flat-square&logo=tailwind-css)](https://tailwindcss.com/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ed?style=flat-square&logo=docker)](https://www.docker.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](./LICENSE)
+[![Build & Test CI](https://github.com/dvvb258/chakra-blog/actions/workflows/ci.yml/badge.svg)](https://github.com/dvvb258/chakra-blog/actions/workflows/ci.yml)
 
-[快速起步](#-极速起步-quick-start) · [部署指南](./DEPLOYMENT.md) · [系统架构](#️-系统架构设计-architecture)
+[快速起步](#-快速起步-quick-start) · [部署指南](./DEPLOYMENT.md) · [开发指南](./DEVELOPMENT.md) · [系统架构](#️-系统架构设计-architecture)
 
 </div>
 
@@ -50,11 +51,12 @@
   - 全站访问量、文章总数、阅读总量与专栏系列统计；
   - 近 7 天发文趋势面积图、技术分类分布环形图与最新文章列表。
 - 🔌 **开箱即用与弹性降级 (Pluggable SPI)**：
-  - **访问量持久化**：全站访问量基于 PostgreSQL 原子持久化，服务重启不丢失数据；Redis 可选启用，未开启时自动降级为单机进程内互斥锁；
+  - **访问量持久化与无弱依赖**：全站访问量基于 PostgreSQL 原生原子操作持久化，服务重启不丢失数据；Redis 可选启用（用于后台 AI 调度分布式任务锁与每日限额控制），未开启时自动平滑降级为单机进程内互斥锁；
   - **存储双模态**：默认采用本地持久化磁盘存储，支持无缝切换至 S3 兼容对象存储（MinIO / 阿里云 OSS / AWS S3 / Cloudflare R2）；
   - **特性探测**：后端提供公共特性探测接口，未开启第三方登录或 AI 时前端自适应显隐入口。
 - 🐳 **Docker Compose 一键启动**：
-  - 预置 `docker-compose.yml` 与全量 SQL 初始化脚本，一键构建运行全套容器集群。
+  - 预置 `docker-compose.yml` 与全量 SQL 初始化脚本，一键构建运行全套容器集群；
+  - 站点信息（站名、标题、作者、社交链接、页脚文案等）可在管理后台「站点设置」中可视化编辑，保存后最迟 60 秒生效，使用预构建镜像无需重新打包。
 
 ---
 

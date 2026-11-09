@@ -146,10 +146,25 @@ public sealed class LocalStorageService : IStorageService
                 var relativePath = pathOnly[requestPath.Length..].TrimStart('/', '\\');
                 var physicalPath = Path.Combine(physicalBasePath, relativePath);
 
-                if (File.Exists(physicalPath))
+                var fullBasePath = Path.GetFullPath(physicalBasePath);
+                if (!fullBasePath.EndsWith(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal))
                 {
-                    File.Delete(physicalPath);
-                    _logger.LogInformation("本地文件已成功删除: {Path}", physicalPath);
+                    fullBasePath += Path.DirectorySeparatorChar;
+                }
+
+                var fullTargetPath = Path.GetFullPath(physicalPath);
+
+                // 安全核验：目标路径必须严格限制在上传目录内部，防范路径穿越越权删除任意系统文件
+                if (!fullTargetPath.StartsWith(fullBasePath, StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger.LogWarning("安全拦截：尝试访问并删除上传目录之外的文件: {Url} -> {ResolvedPath}", fileUrl, fullTargetPath);
+                    return Task.CompletedTask;
+                }
+
+                if (File.Exists(fullTargetPath))
+                {
+                    File.Delete(fullTargetPath);
+                    _logger.LogInformation("本地文件已成功删除: {Path}", fullTargetPath);
                 }
             }
         }

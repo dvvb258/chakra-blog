@@ -13,7 +13,7 @@ export default function HeroSection() {
     <section className="relative overflow-hidden min-h-[calc(100vh-56px)] flex flex-col justify-between pt-4 pb-4 transition-colors">
       {/* 1. 晨曦日光与深邃雷夜自然底色 */}
       <div
-        className="absolute inset-0 -z-10 pointer-events-none bg-[#fffdfa] dark:bg-[#090613] transition-colors duration-500"
+        className="absolute inset-0 -z-10 pointer-events-none bg-theme-bg transition-colors duration-500"
       />
 
       {/* 2. 点阵背景装饰 */}

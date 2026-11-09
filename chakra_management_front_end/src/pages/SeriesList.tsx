@@ -28,7 +28,7 @@ import {
   UploadOutlined,
 } from '@ant-design/icons'
 import * as seriesApi from '@/api/series'
-import { FRONT_URL } from '@/config/brand'
+import { getFrontUrl } from '@/config/brand'
 import { uploadMedia } from '@/api/media'
 import PermissionGuard from '@/components/PermissionGuard'
 import { PERMISSIONS } from '@/constants/permissions'
@@ -287,7 +287,7 @@ export default function SeriesList() {
             <Button
               type="text"
               icon={<ExportOutlined />}
-              onClick={() => window.open(`${FRONT_URL}/series/${record.id}`, '_blank')}
+              onClick={() => window.open(`${getFrontUrl()}/series/${record.id}`, '_blank')}
             />
           </Tooltip>
 

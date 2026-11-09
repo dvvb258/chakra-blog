@@ -1,0 +1,49 @@
+version: 2
+updates:
+  # 后端 NuGet 依赖
+  - package-ecosystem: "nuget"
+    directory: "/chakra_api_back_end"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+
+  # 展示前台 npm 依赖
+  - package-ecosystem: "npm"
+    directory: "/chakra_front_end"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    ignore:
+      # 主框架大版本升级需人工评估，避免自动 PR 破坏构建
+      - dependency-name: "next"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+
+  # 管理后台 npm 依赖
+  - package-ecosystem: "npm"
+    directory: "/chakra_management_front_end"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    ignore:
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+
+  # GitHub Actions 工作流依赖
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    commit-message:
+      prefix: "chore(ci)"

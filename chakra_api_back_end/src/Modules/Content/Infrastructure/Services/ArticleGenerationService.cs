@@ -317,16 +317,32 @@ public class ArticleGenerationService : IArticleGenerationService
                 ? meta.CoverColor
                 : "linear-gradient(135deg, #6D28D9 0%, #818CF8 100%)";
 
-            // 6. 验证 LLM 选出的 categoryId 和 seriesId，存在则采用，不存在则安全兜底
+            // 6. 验证 LLM 选出的 categoryId 和 seriesId，存在则采用，不存在则安全自愈/兜底
             long categoryId;
-            if (meta?.CategoryId.HasValue == true && availableCategories.Any(c => c.Id == meta.CategoryId.Value))
+            if (availableCategories.Count == 0)
+            {
+                // 系统内暂无任何分类：动态自愈创建默认分类并持久化，杜绝外键约束冲突 (DB-23503)
+                var defaultCategory = await _dbContext.Categories
+                    .FirstOrDefaultAsync(c => !c.IsDeleted, cancellationToken);
+
+                if (defaultCategory == null)
+                {
+                    defaultCategory = new Category("技术分享", "系统默认技术文章分类");
+                    await _dbContext.Categories.AddAsync(defaultCategory, cancellationToken);
+                    await _dbContext.SaveChangesAsync(cancellationToken);
+                    _logger.LogInformation("系统检测到无可用分类，已自动创建默认分类 [技术分享] (ID: {Id})", defaultCategory.Id);
+                }
+
+                categoryId = defaultCategory.Id;
+            }
+            else if (meta?.CategoryId.HasValue == true && availableCategories.Any(c => c.Id == meta.CategoryId.Value))
             {
                 categoryId = meta.CategoryId.Value;
             }
             else
             {
-                // 兜底：选取首个可用分类 ID，或 1
-                categoryId = availableCategories.FirstOrDefault()?.Id ?? 1;
+                // 兜底：选取首个真实存在的分类 ID，杜绝写死不存在的虚拟 ID
+                categoryId = availableCategories.First().Id;
             }
 
             long? seriesId = null;

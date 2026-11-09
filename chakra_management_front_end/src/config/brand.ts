@@ -32,5 +32,19 @@ export const brand = {
   copyright: 'CHAKRA ENGINE · ALL RIGHTS RESERVED',
 }
 
-/** 前台展示端访问地址 */
-export const FRONT_URL = import.meta.env.VITE_BLOG_FRONT_URL ?? 'http://localhost:3000'
+/**
+ * 前台展示端访问地址（运行期从后台「站点设置」读取，未配置时回退构建期变量与默认值）
+ */
+let runtimeFrontUrl = ''
+
+/** 更新前台地址（应用启动加载站点设置后调用；传入空值表示恢复默认回退） */
+export function setFrontUrl(url?: string): void {
+  runtimeFrontUrl = typeof url === 'string' && url.trim() !== ''
+    ? url.trim().replace(/\/$/, '')
+    : ''
+}
+
+/** 获取当前生效的前台访问地址 */
+export function getFrontUrl(): string {
+  return runtimeFrontUrl || import.meta.env.VITE_BLOG_FRONT_URL || 'http://localhost:3000'
+}

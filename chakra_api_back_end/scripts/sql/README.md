@@ -19,3 +19,19 @@ psql -d <database> -f scripts/sql/init.sql
 ## 结构升级
 
 初始化脚本不是数据库升级工具。已部署数据库发生结构变更时，应在此目录新增带顺序编号的显式升级脚本，例如 `001_add_token_hash.sql`，经审核后人工执行。升级脚本不得在应用启动时自动运行。
+
+现有升级脚本：
+
+| 脚本 | 说明 |
+|---|---|
+| [`upgrade/001_site_settings.sql`](upgrade/001_site_settings.sql) | 新增站点设置表与「站点设置」菜单权限（后台可视化配置站名/SEO/文案） |
+
+执行方式（Docker Compose 部署）：
+
+```bash
+# Linux / macOS
+docker compose exec -T postgres psql -U postgres -d blog < chakra_api_back_end/scripts/sql/upgrade/001_site_settings.sql
+
+# Windows PowerShell
+Get-Content chakra_api_back_end/scripts/sql/upgrade/001_site_settings.sql -Raw | docker compose exec -T postgres psql -U postgres -d blog
+```

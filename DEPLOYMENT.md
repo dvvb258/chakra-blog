@@ -21,11 +21,11 @@
 
 ## 方式一：Docker Compose 一键部署（生产推荐）
 
-### 1. 配置环境变量（可选）
+### 1. 配置环境变量（可选，默认配置开箱即用）
 ```bash
 cp .env.example .env
 # 生产环境安全建议：请修改 .env 中的：
-# 1. JWT_SECRET（认证签名强密钥）
+# 1. JWT_SECRET（认证签名强密钥，至少 32 字符；生成方式：openssl rand -base64 48）
 # 2. POSTGRES_PASSWORD（数据库密码）
 # 3. HANGFIRE_PASSWORD（后台任务控制面板 Basic 认证密码）
 ```
@@ -39,7 +39,7 @@ docker compose up -d
 ```
 
 #### 模式 B：本地源码构建模式（二次开发）
-若修改了展示端个人配置（如 `src/config/site.ts`）、UI 素材或后端业务代码，可传入 `--build` 参数在本地执行全量构建后启动：
+站点信息（站名、SEO、文案等）可在后台「站点设置」中修改，无需重新构建；仅当修改 UI 素材、组件或后端业务代码时，才需传入 `--build` 参数在本地执行全量构建后启动：
 ```bash
 docker compose up -d --build
 ```
@@ -104,7 +104,7 @@ npm run dev
 ## 生产域名与 Nginx 反向代理配置
 
 ### 为什么推荐“容器内网运行 + 宿主机 Nginx 网关”？
-- **域名优雅分流**：前台（3000）、管理后台（3101）和 API（5000）可在单一服务器上通过二级域名统一使用标准 80/443 端口，无需对外暴露奇怪的端口号；
+- **域名优雅分流**：前台（3000）、管理后台（3101）和 API（5000）可在单一服务器上通过二级域名统一使用标准 80/443 端口，无需对外暴露非常规端口；
 - **统一 HTTPS/SSL 证书管理**：由宿主机 Nginx 集中处理 TLS 终结与 Certbot 自动续期，无需将证书文件分散拷贝至各个 Docker 容器内部；
 - **避免端口冲突**：若服务器已安装宝塔面板、1Panel 或已有 Web 站点，容器不会强占 80/443 端口，兼容性最佳。
 
@@ -207,7 +207,7 @@ S3_SECRET_KEY=YOUR_SECRET_KEY
 S3_PUBLIC_URL=https://cdn.yourdomain.com
 ```
 
-### 2. 启用 Redis 分布式缓存与分布式任务锁
+### 2. 启用 Redis 分布式任务锁与调度限额 (可选)
 在 `.env` 中设置：
 ```env
 REDIS_ENABLED=true
@@ -239,6 +239,34 @@ AI_RSS_SOURCES=https://devblogs.microsoft.com/dotnet/feed/,https://devblogs.micr
 ```env
 CORS_ALLOWED_ORIGINS=https://myblog.com,https://admin.myblog.com
 ```
+
+---
+
+## 站点信息配置（管理后台可视化，无需重新打包）
+
+站名、标题、描述、关键词、作者资料、社交链接、页脚文案等，均可在 **管理后台 →「站点设置」** 中可视化编辑：
+
+- **常用字段表单**：站名、品牌名、标题、描述、关键词、站点地址、头像/默认封面、作者副标题与简介、首屏标语、页脚格言与版权、GitHub/邮箱；
+- **高级 JSON**：可覆盖首页按钮文案、关于页技术栈、角色设定等任意层级字段（仅需提交要覆盖的字段）；
+- **保存后生效**：配置以 JSON 覆盖项形式存入 `site_settings` 表，前台服务端缓存 60 秒，最迟 1 分钟内生效，**无需重新打包或重启容器**；
+- **留空即默认**：未覆盖的字段自动回落 `chakra_front_end/src/config/site.ts` 中的默认值；点击「恢复默认」可清空全部覆盖；
+- **站点地址一致性**：后台填写的「站点地址」用于 SEO / RSS / Sitemap，后端 CORS 白名单仍读取 `.env` 的 `NEXT_PUBLIC_SITE_URL`，两者建议保持一致。
+
+### 已有部署升级数据库（重要）
+
+`init.sql` 只在数据库卷初次创建时执行，**已有数据卷的部署需要手动执行一次升级脚本**，否则「站点设置」保存会因表不存在而失败：
+
+```bash
+# Linux / macOS
+docker compose exec -T postgres psql -U postgres -d blog < chakra_api_back_end/scripts/sql/upgrade/001_site_settings.sql
+
+# Windows PowerShell（不支持 < 重定向）
+Get-Content chakra_api_back_end/scripts/sql/upgrade/001_site_settings.sql -Raw | docker compose exec -T postgres psql -U postgres -d blog
+```
+
+脚本会创建 `site_settings` 表，并补充「站点设置」菜单与权限项（可重复执行）。
+
+> 说明：`INTERNAL_API_BASE_URL`（`/api` 反向代理目标）属于构建期规则，预构建镜像默认指向 `http://blogapi:8080/api`；若后端容器名不同，需重新构建或在前置 Nginx 层改写。
 
 ---
 

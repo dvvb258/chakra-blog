@@ -35,7 +35,7 @@ import {
 import { useNavigate, useParams } from 'react-router-dom'
 import MDEditor from '@uiw/react-md-editor'
 import { useAuthStore } from '@/stores/authStore'
-import { FRONT_URL } from '@/config/brand'
+import { getFrontUrl } from '@/config/brand'
 import * as articlesApi from '@/api/articles'
 import * as categoriesApi from '@/api/categories'
 import { uploadMedia } from '@/api/media'
@@ -57,6 +57,7 @@ export default function ArticleEdit() {
   const isAdmin = user?.role === 'Admin'
   const [createdByUserId, setCreatedByUserId] = useState<string | number | null>(null)
   const isOwner = !createdByUserId || String(createdByUserId) === String(user?.id)
+  const canEdit = isAdmin || isOwner
 
   const [content, setContent] = useState('')
   const [coverUrl, setCoverUrl] = useState('')
@@ -183,7 +184,7 @@ export default function ArticleEdit() {
             return
           }
 
-          const targetCatId = articleData.categoryId && Number(articleData.categoryId) > 0
+          const targetCatId = articleData.categoryId && String(articleData.categoryId) !== '0'
             ? String(articleData.categoryId)
             : undefined
 
@@ -310,8 +311,8 @@ export default function ArticleEdit() {
         title: values.title.trim(),
         content,
         summary: values.summary?.trim() || undefined,
-        categoryId: values.categoryId ? Number(values.categoryId) : undefined,
-        seriesId: values.seriesId || undefined,
+        categoryId: values.categoryId ? String(values.categoryId) : undefined,
+        seriesId: values.seriesId ? String(values.seriesId) : undefined,
         tags: values.tags || [],
         readingTime: values.readingTime || estimatedTime,
         coverColor: values.coverColor || '#0284c7',
@@ -362,7 +363,7 @@ export default function ArticleEdit() {
             返回列表
           </Button>
           <Title level={4} className={styles.pageTitle}>
-            {isOwner ? '编辑文章' : (currentStatus === ArticleStatus.PendingReview ? '审阅文章' : '查看文章')}
+            {canEdit ? '编辑文章' : '查看文章'}
           </Title>
           <Tag color={ARTICLE_STATUS_MAP[currentStatus as keyof typeof ARTICLE_STATUS_MAP]?.color || 'blue'}>
             {ARTICLE_STATUS_MAP[currentStatus as keyof typeof ARTICLE_STATUS_MAP]?.label || '未知状态'}
@@ -375,7 +376,7 @@ export default function ArticleEdit() {
         <Space size={12} align="center">
           <Button
             icon={<ExportOutlined />}
-            onClick={() => window.open(`${FRONT_URL}/articles/${id}`, '_blank')}
+            onClick={() => window.open(`${getFrontUrl()}/articles/${id}`, '_blank')}
           >
             前台预览
           </Button>
@@ -383,8 +384,58 @@ export default function ArticleEdit() {
             约 {wordCount} 字 · 预估阅读 {estimatedTime} 分钟
           </Text>
 
-          {/* 1. 若创建人是自己 (isOwner = true)：展示作者本人的创作与提审按钮 */}
-          {isOwner ? (
+          {/* 管理员角色：具备全量编辑与发布权 */}
+          {isAdmin ? (
+            <>
+              {currentStatus === ArticleStatus.PendingReview && (
+                <>
+                  <Popconfirm
+                    title="确定驳回该文章？"
+                    description="驳回后文章将退回草稿状态，由作者修改后重新提交。"
+                    onConfirm={handleReject}
+                    okText="确认驳回"
+                    cancelText="取消"
+                    okButtonProps={{ danger: true }}
+                  >
+                    <Button danger loading={submitting}>
+                      驳回文章
+                    </Button>
+                  </Popconfirm>
+                  <Button
+                    loading={submitting}
+                    onClick={handleApprove}
+                    style={{ borderColor: '#10b981', color: '#10b981' }}
+                  >
+                    直接通过
+                  </Button>
+                </>
+              )}
+
+              <Button
+                loading={submitting}
+                onClick={() => {
+                  setTargetStatus(ArticleStatus.Draft)
+                  form.submit()
+                }}
+              >
+                {currentStatus === ArticleStatus.Published ? '下线为草稿' : '保存为草稿'}
+              </Button>
+
+              <Button
+                type="primary"
+                icon={<CheckCircleOutlined />}
+                loading={submitting}
+                onClick={() => {
+                  setTargetStatus(ArticleStatus.Published)
+                  form.submit()
+                }}
+                style={{ backgroundColor: '#10b981', borderColor: '#10b981', padding: '0 20px', height: 38, fontWeight: 600 }}
+              >
+                {currentStatus === ArticleStatus.Published ? '保存修改' : '审核通过并发布'}
+              </Button>
+            </>
+          ) : isOwner ? (
+            /* 普通作者本人：展示草稿保存与提交审核 */
             <>
               <Button
                 loading={submitting}
@@ -409,58 +460,29 @@ export default function ArticleEdit() {
                 {currentStatus === ArticleStatus.Published ? '保存并提审' : '提交审核'}
               </Button>
             </>
-          ) : (
-            /* 2. 若创建人不是自己 (isOwner = false)：管理员仅有审阅与审核权限，不可保存草稿或直接发布 */
-            <>
-              {currentStatus === ArticleStatus.PendingReview && isAdmin && (
-                <PermissionGuard code={PERMISSIONS.ARTICLE_APPROVE}>
-                  <Popconfirm
-                    title="确定驳回该文章？"
-                    description="驳回后文章将退回草稿状态，由作者修改后重新提交。"
-                    onConfirm={handleReject}
-                    okText="确认驳回"
-                    cancelText="取消"
-                    okButtonProps={{ danger: true }}
-                  >
-                    <Button danger loading={submitting}>
-                      驳回文章
-                    </Button>
-                  </Popconfirm>
-                  <Button
-                    type="primary"
-                    icon={<CheckCircleOutlined />}
-                    loading={submitting}
-                    onClick={handleApprove}
-                    style={{ backgroundColor: '#10b981', borderColor: '#10b981', padding: '0 20px', height: 38, fontWeight: 600 }}
-                  >
-                    审核通过
-                  </Button>
-                </PermissionGuard>
-              )}
-            </>
-          )}
+          ) : null}
         </Space>
       </div>
 
-      <Form form={form} layout="vertical" onFinish={handleSubmit} disabled={!isOwner}>
+      <Form form={form} layout="vertical" onFinish={handleSubmit} disabled={!canEdit}>
 
-        {/* 若不是自己创建的文章（管理员查阅他人文章），给出只读提示 */}
-        {!isOwner && (
+        {/* 若为管理员操作他人/AI生成的文章，给出提示 */}
+        {isAdmin && !isOwner && (
           <Alert
             type="info"
             showIcon
-            message="正在查阅他人创作的文章（只读模式）"
+            message="管理员协同编辑模式"
             description={
               currentStatus === ArticleStatus.PendingReview
-                ? "本文由创作者提交审核。您可以审阅正文内容并在右上角执行【审核通过】或【驳回】操作，无权篡改正文或保存为草稿。"
-                : "您当前正在以管理员身份查阅其他创作者的文章。正文内容仅限作者本人修改，您无权修改草稿或直接操作。"
+                ? "您正以超级管理员身份审阅此文章，可直接修改正文或在右上角执行通过/驳回。"
+                : `您正以超级管理员身份编辑他人或系统生成的文章（作者ID: ${createdByUserId || '系统/AI'}），修改并保存后将直接生效。`
             }
             style={{ marginBottom: 16 }}
           />
         )}
 
-        {/* 若是作者修改已公开文章，提示需重新提审 */}
-        {isOwner && currentStatus === ArticleStatus.Published && (
+        {/* 若是普通作者修改已公开文章，提示需重新提审 */}
+        {!isAdmin && isOwner && currentStatus === ArticleStatus.Published && (
           <Alert
             type="warning"
             showIcon

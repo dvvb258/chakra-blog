@@ -144,7 +144,7 @@ chakra_front_end/
 │   │   ├── series/                        专栏列表与详情
 │   │   └── about/                         关于博主页面
 │   ├── config/
-│   │   ├── site.ts                        [配置层] 站点基础元数据、Hero 标语、角色名片、技术栈矩阵
+│   │   ├── site.ts                        [配置层] 站点默认配置（可被后台「站点设置」运行期覆盖）
 │   │   └── theme.ts                       [主题层] Design Tokens 调色板（Hex 与 RGB 变量映射）
 │   ├── components/
 │   │   ├── layout/                        Navbar, Footer

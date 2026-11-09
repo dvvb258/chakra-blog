@@ -45,10 +45,10 @@ WORKDIR /app
 COPY --from=publish /app/publish .
 
 USER root
-# 预先创建 uploads 目录并赋予完全读写权限，兼容非 root 运行及挂载持久卷
+# 预先创建 uploads 目录并将属主收敛给运行用户（仅保留属主读写执行权限）
 RUN mkdir -p /app/uploads \
     && chown -R $APP_UID:$APP_UID /app \
-    && chmod -R 777 /app/uploads
+    && chmod -R 750 /app/uploads
 
 USER $APP_UID
 ENTRYPOINT ["dotnet", "ApiHost.dll"]

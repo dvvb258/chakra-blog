@@ -30,21 +30,24 @@ public class AuditLogBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest,
 
     public async Task<TResponse> Handle(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken cancellationToken)
     {
+        // 显式声明跳过审计的请求（如前台高频匿名统计打点）直接放行，避免海量请求冲垮管理端审计日志
+        if (typeof(TRequest).GetCustomAttribute<SkipAuditLogAttribute>() != null)
+        {
+            return await next();
+        }
+
         // 仅拦截 Command（写操作）或显式标记了 [AuditLog] 的请求
         var auditAttr = typeof(TRequest).GetCustomAttribute<AuditLogAttribute>();
         var isCommand = typeof(ICommand).IsAssignableFrom(typeof(TRequest)) ||
                         typeof(TRequest).GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(ICommand<>));
 
-        // 排除前台高频统计打点命令（如全站访问量、文章阅读量累加），防止海量匿名访客请求冲垮管理端审计日志
-        var ns = typeof(TRequest).Namespace ?? string.Empty;
-        var isStatsCommand = ns.Contains("Stats", StringComparison.OrdinalIgnoreCase);
-
-        if ((!isCommand && auditAttr == null) || (isStatsCommand && auditAttr == null))
+        if (!isCommand && auditAttr == null)
         {
             return await next();
         }
 
-        var module = auditAttr?.Module ?? ResolveDefaultModule(typeof(TRequest));
+        // 模块与行为一律来自显式声明，未声明时回落到通用模块，避免依赖命名空间字符串猜测
+        var module = auditAttr?.Module ?? AuditModules.System;
         var action = auditAttr?.Action ?? typeof(TRequest).Name;
 
         var httpContext = _httpContextAccessor.HttpContext;
@@ -71,7 +74,7 @@ public class AuditLogBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest,
         {
             stopwatch.Stop();
 
-            // 构造审计日志并微秒级无阻塞压入内存通道
+            // 构造审计日志并无阻塞压入内存通道（写入为内存操作，实际耗时远低于 DurationMs 记录的毫秒精度）
             var entry = new AuditLogEntry
             {
                 UserId = _currentUser.IsAuthenticated && _currentUser.UserId > 0 ? _currentUser.UserId : null,
@@ -90,14 +93,5 @@ public class AuditLogBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest,
 
             _auditLogQueue.EnqueueAuditLog(entry);
         }
-    }
-
-    private static string ResolveDefaultModule(Type requestType)
-    {
-        var ns = requestType.Namespace ?? string.Empty;
-        if (ns.Contains("Articles")) return AuditModules.Article;
-        if (ns.Contains("Series")) return AuditModules.Series;
-        if (ns.Contains("Users")) return AuditModules.Profile;
-        return "系统业务";
     }
 }

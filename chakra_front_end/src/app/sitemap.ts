@@ -1,12 +1,14 @@
 import type { MetadataRoute } from 'next'
 import { getAllArticlesForSitemap, getAllSeriesForSitemap } from '@/lib/api'
-import { siteConfig } from '@/config/site'
-
-const BASE_URL = siteConfig.url.replace(/\/$/, '')
+import { getSiteConfig } from '@/lib/site-config'
 
 export const dynamic = 'force-dynamic'
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  // 站点地址来自后台「站点设置」，需在请求内读取（不能在模块顶层固化）
+  const config = await getSiteConfig()
+  const BASE_URL = config.url.replace(/\/$/, '')
+
   // 静态路由
   const staticRoutes: MetadataRoute.Sitemap = [
     {

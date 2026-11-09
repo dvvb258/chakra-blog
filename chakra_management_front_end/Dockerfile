@@ -9,10 +9,6 @@ RUN npm ci --ignore-scripts
 
 COPY . .
 
-# 博客展示端前台地址（构建期注入，用于管理后台“预览文章/查看前台”跳转）
-ARG VITE_BLOG_FRONT_URL=http://localhost:3000
-ENV VITE_BLOG_FRONT_URL=$VITE_BLOG_FRONT_URL
-
 # 生产环境构建打包（生成轻量分包静态资源）
 ENV NODE_ENV=production
 RUN npm run build

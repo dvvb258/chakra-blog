@@ -122,7 +122,8 @@ chakra_api_back_end/
   - 采用 **`EFCore.NamingConventions` (`UseSnakeCaseNamingConvention()`)** 自动蛇形列名映射。
   - 全局约定雪花 ID（`ValueGeneratedNever()`）与软删除列（`is_del`）。
 - **读操作 (Query)**：
-  - QueryHandler 中直接注入 `IContentDbConnectionFactory`，使用 **Dapper** 执行 SQL 查询直出 DTO。
+  - `Content` 模块 QueryHandler 中直接注入 `IContentDbConnectionFactory`，使用 **Dapper** 执行 SQL 查询直出 DTO；
+  - `Identity` 模块 QueryHandler 中直接注入 `IdentityDbContext`，使用 **EF Core `AsNoTracking()`** 执行只读查询直出 DTO。
 
 ### 2. 领域模型与实体自洽
 - 实体继承自 `SharedKernel.Domain.Entity`（包含 `Id`, `CreatedAt`, `UpdatedAt`, `Version`, `IsDeleted`, `DeletedAt`）。
@@ -136,7 +137,7 @@ chakra_api_back_end/
 | 配置键 | 用途说明 |
 |--------|------|
 | `ConnectionStrings:DefaultConnection` | PostgreSQL 业务主库 |
-| `ConnectionStrings:Redis` | 访问量计数与分布式缓存（可选；未配置时降级为内存计数） |
+| `ConnectionStrings:Redis` | 后台定时任务分布式互斥锁与限额控制（可选；未配置时降级为进程内 SemaphoreSlim 互斥锁） |
 | `Redis:Enabled` | Redis 功能开关（布尔值） |
 | `Storage:Provider` | 媒体存储模式：`Local`（默认本地持久卷）或 `S3`（云端/MinIO） |
 | `Storage:Local:UploadDir` | 本地存储物理保存子路径（默认 `uploads`） |
@@ -150,20 +151,20 @@ chakra_api_back_end/
 | `JwtSettings:Secret` | JWT 签名密钥（至少 32 字符） |
 | `JwtSettings:Issuer` | JWT 颁发者（默认 chakra_api） |
 | `JwtSettings:Audience` | JWT 受众（默认 chakra_client） |
-| `S3Storage:ServiceUrl` | S3 兼容服务端点 |
-| `S3Storage:AccessKey` | S3 AccessKey |
-| `S3Storage:SecretKey` | S3 SecretKey |
-| `S3Storage:BucketName` | S3 存储桶名称 |
-| `S3Storage:PublicUrl` | 公开访问外链/CDN 域名 |
-| `S3Storage:ForcePathStyle` | 是否强制路径样式（默认 true） |
+| `Storage:S3:Endpoint` (兼容 `S3Storage:ServiceUrl`) | S3 兼容服务端点 |
+| `Storage:S3:AccessKey` (兼容 `S3Storage:AccessKey`) | S3 AccessKey |
+| `Storage:S3:SecretKey` (兼容 `S3Storage:SecretKey`) | S3 SecretKey |
+| `Storage:S3:Bucket` (兼容 `S3Storage:BucketName`) | S3 存储桶名称 |
+| `Storage:S3:PublicUrl` (兼容 `S3Storage:PublicUrl`) | 公开访问外链/CDN 域名 |
+| `Storage:S3:ForcePathStyle` (兼容 `S3Storage:ForcePathStyle`) | 是否强制路径样式（默认 true） |
 
 ---
 
 ## 开源友好设计原则
 
-1. **Redis 弱依赖与内存平滑降级**：
-   - 访问量计数器在未启用 Redis 时自动切换为单机内存原子计数。
-   - 定时任务调度锁在单节点场景自动回退为进程内互斥锁。
+1. **Redis 弱依赖与平滑降级**：
+   - 定时任务调度锁与文章源抢占锁在未启用 Redis 时自动回退为单机进程内互斥锁（`SemaphoreSlim`）。
+   - 全站访问量统计基于 PostgreSQL 原生原子操作持久化，无需额外缓存依赖，单机低配环境平稳运行。
 2. **零外部存储依赖**：
    - 内置 `LocalStorageService` 实现 `IStorageService` 接口，默认将图片保存至本地磁盘（`uploads/`），并通过静态文件中间件直接提供访问。
    - 图片格式自适应转码由展示端 Next.js 15 原生 Sharp 引擎接管。

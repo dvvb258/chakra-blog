@@ -55,6 +55,9 @@ export const PERMISSIONS = {
   // 用户管理
   USER_VIEW: 'system:user:view',
   USER_ROLE_UPDATE: 'system:user:role:update',
+
+  // 站点设置
+  SETTINGS_MANAGE: 'system:settings:manage',
 } as const
 
 export type PermissionCode = (typeof PERMISSIONS)[keyof typeof PERMISSIONS]

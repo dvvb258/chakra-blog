@@ -14,5 +14,6 @@ export const SYSTEM_MENU_ORDER: MenuItemConfig[] = [
   { key: '/logs', label: '系统日志' },
   { key: '/roles', label: '角色权限' },
   { key: '/menus', label: '菜单管理' },
+  { key: '/settings', label: '站点设置' },
   { key: '/users', label: '个人中心' },
 ]

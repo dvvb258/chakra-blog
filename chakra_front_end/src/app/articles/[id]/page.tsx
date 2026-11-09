@@ -21,17 +21,23 @@ import ArticleNavigation from '@/components/articles/ArticleNavigation'
 import ReadingProgressBar from '@/components/ui/ReadingProgressBar'
 import { extractHeadings } from '@/lib/markdown'
 import { siteConfig } from '@/config/site'
+import { getSiteConfig } from '@/lib/site-config'
 import { serializeJsonLd } from '@/lib/structuredData'
 
 interface PageProps {
   params: Promise<{ id: string }>
 }
 
+// 说明：RootLayout 已声明 force-dynamic（用于运行期站点配置），此处无需再声明 revalidate
+
 /**
  * 动态 SEO 元数据生成
  */
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params
+  // 确保站点配置已就绪（命中缓存时无额外网络开销），避免冷启动时读到默认站名/封面
+  await getSiteConfig()
+
   try {
     const article = await getArticleById(id)
     if (!article) return { title: '文章未找到' }

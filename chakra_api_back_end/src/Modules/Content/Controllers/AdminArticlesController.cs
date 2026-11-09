@@ -117,7 +117,8 @@ public class AdminArticlesController : BaseApiController
         var command = new UpdateArticleCommand(
             id,
             request,
-            _currentUser.UserId);
+            _currentUser.UserId,
+            _currentUser.IsInRole(RoleNames.Admin));
 
         await _mediator.Send(command, cancellationToken);
         return Success("文章更新成功");

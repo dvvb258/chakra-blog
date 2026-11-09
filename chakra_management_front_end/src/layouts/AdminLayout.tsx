@@ -23,9 +23,10 @@ import {
   TeamOutlined,
   AppstoreOutlined,
   FolderOutlined,
+  SettingOutlined,
 } from '@ant-design/icons'
 import { useAuthStore } from '@/stores/authStore'
-import { brand, FRONT_URL } from '@/config/brand'
+import { brand, getFrontUrl } from '@/config/brand'
 import { RoleCodes } from '@/constants/roles'
 import styles from './AdminLayout.module.css'
 
@@ -66,6 +67,11 @@ const menuItems = [
     key: '/menus',
     icon: <AppstoreOutlined />,
     label: '菜单管理',
+  },
+  {
+    key: '/settings',
+    icon: <SettingOutlined />,
+    label: '站点设置',
   },
   {
     key: '/users',
@@ -184,7 +190,7 @@ export default function AdminLayout() {
                 type="text"
                 icon={<ExportOutlined />}
                 style={{ color: '#64748b' }}
-                onClick={() => window.open(FRONT_URL, '_blank')}
+                onClick={() => window.open(getFrontUrl(), '_blank')}
               >
                 前台站点
               </Button>

@@ -5,6 +5,8 @@ import zhCN from 'antd/locale/zh_CN'
 import { useAuthStore } from '@/stores/authStore'
 import AuthGuard from '@/components/AuthGuard'
 import AdminLayout from '@/layouts/AdminLayout'
+import { getPublicSiteSettings } from '@/api/settings'
+import { setFrontUrl } from '@/config/brand'
 
 const Login = lazy(() => import('@/pages/Login'))
 const Dashboard = lazy(() => import('@/pages/Dashboard'))
@@ -17,6 +19,7 @@ const SeriesList = lazy(() => import('@/pages/SeriesList'))
 const LogList = lazy(() => import('@/pages/LogList'))
 const RoleList = lazy(() => import('@/pages/RoleList'))
 const MenuList = lazy(() => import('@/pages/MenuList'))
+const SiteSettings = lazy(() => import('@/pages/SiteSettings'))
 
 const PageLoading = () => (
   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
@@ -30,6 +33,17 @@ function AppRoutes() {
   useEffect(() => {
     restoreSession()
   }, [restoreSession])
+
+  // 读取后台「站点设置」中的前台地址，保证预构建镜像无需重新打包即可指向实际博客域名
+  useEffect(() => {
+    getPublicSiteSettings()
+      .then((config) => {
+        setFrontUrl(typeof config?.url === 'string' ? config.url : undefined)
+      })
+      .catch(() => {
+        // 读取失败时回退构建期变量或默认地址，不阻断控制台使用
+      })
+  }, [])
 
   return (
     <Suspense fallback={<PageLoading />}>
@@ -97,6 +111,14 @@ function AppRoutes() {
             element={
               <AuthGuard requireAdmin path="/menus">
                 <MenuList />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <AuthGuard path="/settings">
+                <SiteSettings />
               </AuthGuard>
             }
           />

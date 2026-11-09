@@ -31,7 +31,7 @@ import {
 import * as echarts from 'echarts'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
-import { brand, FRONT_URL } from '@/config/brand'
+import { brand, getFrontUrl } from '@/config/brand'
 import PermissionGuard from '@/components/PermissionGuard'
 import { PERMISSIONS } from '@/constants/permissions'
 import * as dashboardApi from '@/api/dashboard'
@@ -267,7 +267,7 @@ export default function Dashboard() {
             <Button
               type="text"
               icon={<ExportOutlined />}
-              onClick={() => window.open(`${FRONT_URL}/articles/${record.id}`, '_blank')}
+              onClick={() => window.open(`${getFrontUrl()}/articles/${record.id}`, '_blank')}
             />
           </Tooltip>
         </Space>

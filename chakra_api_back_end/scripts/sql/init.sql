@@ -228,6 +228,17 @@ CREATE TABLE IF NOT EXISTS role_menus (
 
 CREATE UNIQUE INDEX IF NOT EXISTS ix_role_menus_role_menu ON role_menus (role_id, menu_id);
 
+-- 11. 站点设置表 (site_settings)：全站单行 JSON 配置，仅保存对代码默认值的覆盖项
+CREATE TABLE IF NOT EXISTS site_settings (
+    id BIGINT PRIMARY KEY,
+    config JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL,
+    updated_at TIMESTAMPTZ NULL,
+    version INT NOT NULL DEFAULT 0,
+    is_del BOOLEAN NOT NULL DEFAULT FALSE,
+    deleted_at TIMESTAMPTZ NULL
+);
+
 -- ============================================================================
 -- 预置种子数据 (Seed Data)
 -- ============================================================================
@@ -272,6 +283,7 @@ VALUES
     (500, NULL, '角色权限', '/roles', 'role:manage', 'TeamOutlined', 6, FALSE, 2, NOW(), FALSE),
     (550, NULL, '菜单管理', '/menus', 'menu:manage', 'AppstoreOutlined', 7, FALSE, 2, NOW(), FALSE),
     (600, NULL, '个人中心', '/users', 'user:manage', 'UserOutlined', 8, FALSE, 2, NOW(), FALSE),
+    (650, NULL, '站点设置', '/settings', 'settings:manage', 'SettingOutlined', 9, FALSE, 2, NOW(), FALSE),
 
     -- 文章管理细粒度按钮/操作 (type = 3)
     (201, 200, '查看文章', '', 'content:article:view', NULL, 1, TRUE, 3, NOW(), FALSE),
@@ -307,7 +319,10 @@ VALUES
 
     -- 个人中心操作项 (type = 3)
     (601, 600, '查看用户', '', 'system:user:view', NULL, 1, TRUE, 3, NOW(), FALSE),
-    (602, 600, '分配角色', '', 'system:user:role:update', NULL, 2, TRUE, 3, NOW(), FALSE)
+    (602, 600, '分配角色', '', 'system:user:role:update', NULL, 2, TRUE, 3, NOW(), FALSE),
+
+    -- 站点设置操作项 (type = 3)
+    (651, 650, '维护站点设置', '', 'system:settings:manage', NULL, 1, TRUE, 3, NOW(), FALSE)
 ON CONFLICT (id) DO NOTHING;
 
 -- 预置默认角色与菜单关联 (Admin: 超管全权; Editor: 仅限个人文章创作、编辑与提审)
@@ -329,7 +344,10 @@ VALUES
     (2005, 2, 204, NOW(), FALSE),
     (2006, 2, 206, NOW(), FALSE),
     (2007, 2, 600, NOW(), FALSE),
-    (2008, 2, 601, NOW(), FALSE)
+    (2008, 2, 601, NOW(), FALSE),
+    -- Admin 站点设置（超管本身具备通配特权，此处用于角色权限界面展示）
+    (1009, 1, 650, NOW(), FALSE),
+    (1010, 1, 651, NOW(), FALSE)
 ON CONFLICT (id) DO NOTHING;
 
 COMMIT;

@@ -1,6 +1,6 @@
 import React from 'react'
 import Link from 'next/link'
-import { Flame, Sparkles, Github, User } from 'lucide-react'
+import { Flame, Sparkles, Github, User, Rss } from 'lucide-react'
 import { siteConfig } from '@/config/site'
 import { getSystemVisits } from '@/lib/api'
 
@@ -41,8 +41,18 @@ export default async function Footer() {
             </div>
           </div>
 
-          {/* 右侧：快速入口与 Github */}
+          {/* 右侧：快速入口与 Github / RSS */}
           <div className="flex items-center justify-start md:justify-end gap-3 text-xs text-slate-500">
+            <Link
+              href="/feed.xml"
+              target="_blank"
+              rel="alternate"
+              type="application/rss+xml"
+              className="px-3.5 py-2 rounded-lg bg-theme-surface hover:bg-theme-surface-hover text-slate-700 dark:text-slate-200 hover:text-theme-primary transition-colors border border-theme-border/60 shadow-2xs flex items-center gap-1.5"
+            >
+              <Rss className="w-3.5 h-3.5 text-amber-500" />
+              <span>RSS 订阅</span>
+            </Link>
             <Link
               href={siteConfig.socials.github}
               target="_blank"

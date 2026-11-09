@@ -9,6 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio">
@@ -22,6 +23,8 @@
     <ProjectReference Include="..\..\src\SharedKernel\SharedKernel.csproj" />
     <ProjectReference Include="..\..\src\Modules\Content\Content.csproj" />
     <ProjectReference Include="..\..\src\Modules\Identity\Identity.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Logging\Logging.csproj" />
+    <ProjectReference Include="..\..\src\ApiHost\ApiHost.csproj" />
   </ItemGroup>
 
 </Project>

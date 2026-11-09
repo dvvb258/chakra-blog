@@ -176,13 +176,13 @@ export default function RoleList() {
       setSubmitting(true)
 
       const allSelectedKeys = Array.from(new Set([...checkedKeys, ...halfCheckedKeys]))
-      const selectedMenuIds = allSelectedKeys.map((k) => Number(k)).filter((n) => !isNaN(n))
+      const selectedMenuIds = allSelectedKeys.map((k) => String(k).trim()).filter(Boolean)
 
       if (editingRole) {
         const payload: UpdateRoleRequest = {
           name: values.name.trim(),
           description: values.description?.trim() || undefined,
-          menuIds: editingRole.code === RoleCodes.Admin ? menus.map((m) => Number(m.id)) : selectedMenuIds,
+          menuIds: editingRole.code === RoleCodes.Admin ? menus.map((m) => String(m.id)) : selectedMenuIds,
         }
         await rolesApi.updateRole(editingRole.id, payload)
         message.success(`角色 [${values.name}] 权限配置已保存`)

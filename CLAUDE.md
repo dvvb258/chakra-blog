@@ -19,7 +19,7 @@ chakra-blog/
 | 项目 | 技术栈 | 默认端口 | 职责定位 |
 |---|---|---|---|
 | **chakra_front_end** | Next.js 15, React 19, Tailwind CSS, Prism.js | 3000 | 昼夜双主题展示、Canvas 动态粒子交互、仿终端微件、服务端流式渲染与统计上报。 |
-| **chakra_api_back_end** | .NET 10, EF Core 10, Dapper, MediatR, PostgreSQL, Hangfire | 5000 / 5001 | 垂直切片 CQRS 架构，雪花 ID 字符串化，三级 RBAC 权限体系，支持 Redis/内存缓存降级与 Local/S3 存储切换。 |
+| **chakra_api_back_end** | .NET 10, EF Core 10, Dapper, MediatR, PostgreSQL, Hangfire | 5000 / 5001 | 垂直切片 CQRS 架构，雪花 ID 字符串化，三级 RBAC 权限体系，支持 Redis 任务锁与单机进程互斥锁平滑降级，Local/S3 存储自由切换。 |
 | **chakra_management_front_end** | React 19, Vite 6, TypeScript, Ant Design 5, Zustand 5 | 3101 | 双 Token 认证、文章与专栏 CRUD、分类维护、系统日志看板、ECharts 统计看板与动态菜单树。 |
 
 ---
@@ -31,7 +31,7 @@ chakra-blog/
   - **视觉预设系统**：内置一套高对比度的昼夜双色主题（日间金橙暖色 / 夜间青蓝冷色），支持全站动态换肤。
   - **三层架构设计与名词边界规范**：
     1. **关键展示层配置化**：
-       - Hero 标语、按钮文案、博主名片、技能矩阵（`about.skills`）、页脚说明与 404 引导文案集中在 `src/config/site.ts` 声明。
+       - Hero 标语、按钮文案、博主名片、技能矩阵（`about.skills`）、页脚说明与 404 引导文案集中在 `src/config/site.ts` 声明为默认值，管理员可在后台「站点设置」以 JSON 覆盖项运行期覆盖（60 秒内生效，无需重新打包）。
        - 保持配置职责单一、明确，未配置项直接缺省，不引入冗余别名层。
     2. **基础功能层通用化**：
        - 文章列表、阅读耗时预估、分类导航、标签过滤、目录导航、分页组件、上下篇联动、分享与互动等基础功能，在代码与界面中一律采用标准通用技术名词。
@@ -145,7 +145,7 @@ chakra-blog/
   1. **双 Token 认证与无感续期**：Axios 拦截器集成单并发互斥续期锁，支持账号密码登录与 GitHub OAuth 快捷登录。
   2. **管理控制台视觉**：Ant Design 5 深色主题，定制机能灰阶调色。
   3. **内容创作工作台**：
-     - 文章管理：多维筛选、分页、浏览量统计与软删除。
+     - 文章管理：多维筛选、分页、浏览量统计与软删除。超级管理员具备全站文章（含协作者与 AI 生成文章）的直达编辑与免审直接发布上线权。
      - Markdown 创作：分屏实时预览、自动字数与阅读耗时预估、内联分类免跳出快速新建、端到端乐观并发版本锁（Version）。
      - 图片上传：支持剪贴板截图粘贴（`Ctrl+V`）、外部文件拖拽上传与工具栏选择，光标处精准插入 Markdown 语法。
      - 专栏管理：专栏列表维护、主题色选择、封面图上传与文章解绑。
@@ -192,7 +192,7 @@ chakra-blog/
 
 ## 开源架构与可插拔设计 (SPI Pattern)
 
-1. **Redis 弹性降级**：通过 `Redis:Enabled` 开关控制。关闭时自动降级为单机内存原子计数与进程内互斥锁，单机低配环境平稳运行。
+1. **Redis 弹性降级**：通过 `Redis:Enabled` 开关控制。用于后台 AI 抓取与生成任务的分布式排他锁；关闭时自动降级为单机进程内互斥锁（`SemaphoreSlim`），单机低配环境平稳运行。全站访问量统计基于 PostgreSQL 原生原子写入持久化，无需额外缓存依赖。
 2. **多 Provider 对象存储**：提供 `LocalStorageService`（本地磁盘 `/uploads` 持久卷）与 `S3StorageService`（兼容 MinIO / 阿里云 OSS / AWS S3 / Cloudflare R2），通过 `Storage:Provider` 灵活切换。
 3. **第三方登录与 AI 软开关**：系统未配置对应参数时安全拦截，并通过 `GET /api/system/public-config` 接口向前端广播特性状态，前端自适应显隐入口。
 4. **标准配置模板化**：敏感凭据全量脱敏，本地开发 0 配置开箱即用，容器化部署全站仅需维护根目录唯一的 `.env.example` 模板。

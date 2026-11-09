@@ -114,6 +114,9 @@ public static class Permissions
     /// <summary>分配用户角色</summary>
     public const string UserRoleUpdate = "system:user:role:update";
 
+    /// <summary>维护站点设置（站名、SEO 信息与展示文案）</summary>
+    public const string SettingsManage = "system:settings:manage";
+
     /// <summary>
     /// 系统所有标准权限元数据集合（按模块组织，供角色授权管理界面勾选）
     /// </summary>
@@ -160,5 +163,8 @@ public static class Permissions
         // 用户管理
         new(UserView, "查看用户", "用户管理", "查看系统用户列表与最后登录时间"),
         new(UserRoleUpdate, "分配角色", "用户管理", "为用户调整分配系统角色"),
+
+        // 站点设置
+        new(SettingsManage, "站点设置", "站点设置", "维护站名、SEO 信息、作者资料与展示文案"),
     ];
 }

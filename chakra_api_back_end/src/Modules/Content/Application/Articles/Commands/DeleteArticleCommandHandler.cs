@@ -38,6 +38,8 @@ public sealed class DeleteArticleCommandHandler : ICommandHandler<DeleteArticleC
             throw new BusinessException("权限不足：您只能删除自己创建的文章", 403);
         }
 
+        // 仅执行软删除：保留封面与正文引用的媒体文件，便于误删排查与后续人工回收。
+        // 如需自动清理，请通过独立的后台任务在确认无引用后删除，避免误删被其他文章复用的文件。
         article.MarkAsDeleted();
         await _dbContext.SaveChangesAsync(cancellationToken);
     }

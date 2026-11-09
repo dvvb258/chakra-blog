@@ -1,8 +1,10 @@
 import { Article, ArticleQueryParams, Category, PagedList, Series, SeriesQueryParams } from '@/types'
 import { siteConfig } from '@/config/site'
 
-/** 站点默认作者名（统一引用 siteConfig，杜绝字面量散落） */
-const DEFAULT_AUTHOR = siteConfig.name
+/** 站点默认作者名（运行期读取，避免在模块初始化阶段固化为默认值） */
+function defaultAuthor(): string {
+  return siteConfig.name
+}
 
 /**
  * 获取 API 基础地址：
@@ -155,7 +157,7 @@ export function normalizeArticle(item: RawArticleData): Article {
       category: 'general',
       categoryName: '通用文章',
       tags: [],
-      author: DEFAULT_AUTHOR,
+      author: defaultAuthor(),
       readingTime: 0,
       readTime: '0 分钟',
       views: 0,
@@ -178,7 +180,7 @@ export function normalizeArticle(item: RawArticleData): Article {
     category: String(item.categoryId || item.category || '0'),
     categoryName: item.categoryName || '未分类',
     tags: Array.isArray(item.tags) ? item.tags : [],
-    author: item.author || DEFAULT_AUTHOR,
+    author: item.author || defaultAuthor(),
     readingTime: readMinutes,
     readTime: formattedReadTime,
     views: item.views || 0,

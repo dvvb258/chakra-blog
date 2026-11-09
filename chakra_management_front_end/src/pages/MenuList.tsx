@@ -204,11 +204,15 @@ export default function MenuList() {
       const values = await form.validateFields()
       setSubmitting(true)
 
+      const parentIdStr = values.parentId && String(values.parentId).trim() !== ''
+        ? String(values.parentId).trim()
+        : null
+
       const payload = {
         name: values.name.trim(),
         path: values.path ? values.path.trim() : '',
         permissionCode: values.permissionCode?.trim() || undefined,
-        parentId: values.parentId ? Number(values.parentId) : null,
+        parentId: parentIdStr,
         icon: values.icon?.trim() || null,
         sort: values.sort ?? 0,
         type: values.type ?? 2,

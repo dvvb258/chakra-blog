@@ -40,7 +40,7 @@ npm run preview
 | 变量 | 用途说明 | 开发环境 (`.env.development`) | 生产环境 (`.env.production`) |
 |---|---|---|---|
 | `VITE_API_BASE_URL` | 后端 API 服务地址（为空时自动使用相对路径 `/api`，供 Nginx 反向代理） | `http://localhost:5000` | `http://localhost:5000` (或留空走 Nginx) |
-| `VITE_BLOG_FRONT_URL` | 前台展示端主页地址（用于文章“前台直达预览”） | `http://localhost:3000` | `http://localhost:3000` |
+| `VITE_BLOG_FRONT_URL` | 前台展示端主页地址的**构建期回退值**；实际地址优先取后台「站点设置」中的 `url` | `http://localhost:3000` | `http://localhost:3000` |
 
 ### 网络请求与续期机制 (`src/api/client.ts`)
 

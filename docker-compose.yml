@@ -95,8 +95,6 @@ services:
     build:
       context: ./chakra_management_front_end
       dockerfile: Dockerfile
-      args:
-        VITE_BLOG_FRONT_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
     container_name: chakra-admin
     restart: unless-stopped
     depends_on:
@@ -118,8 +116,8 @@ services:
       context: ./chakra_front_end
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
         INTERNAL_API_BASE_URL: ${INTERNAL_API_BASE_URL:-http://blogapi:8080/api}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
     container_name: chakra-blog
     restart: unless-stopped
     depends_on:
@@ -129,7 +127,7 @@ services:
       NODE_ENV: production
       PORT: 3000
       # Next.js 服务端直连后端 API 容器
-      INTERNAL_API_BASE_URL: http://blogapi:8080/api
+      INTERNAL_API_BASE_URL: ${INTERNAL_API_BASE_URL:-http://blogapi:8080/api}
       # 公开站点域名/地址
       NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
     ports:

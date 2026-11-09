@@ -1,9 +1,11 @@
 import type { MetadataRoute } from 'next'
-import { siteConfig } from '@/config/site'
+import { getSiteConfig } from '@/lib/site-config'
 
 export const dynamic = 'force-dynamic'
 
-export default function robots(): MetadataRoute.Robots {
+export default async function robots(): Promise<MetadataRoute.Robots> {
+  const config = await getSiteConfig()
+
   return {
     rules: [
       {
@@ -12,6 +14,6 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ['/api/', '/_next/'],
       },
     ],
-    sitemap: `${siteConfig.url}/sitemap.xml`,
+    sitemap: `${config.url}/sitemap.xml`,
   }
 }

@@ -77,8 +77,18 @@ public sealed class AuditLogProcessor : BackgroundService
 
                 if (batch.Count > 0)
                 {
-                    await FlushAuditBatchAsync(batch);
-                    batch.Clear();
+                    try
+                    {
+                        await FlushAuditBatchAsync(batch);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "【日志系统】写入审计日志批次发生异常，已安全丢弃本批次 {Count} 条日志以防止内存累积死循环", batch.Count);
+                    }
+                    finally
+                    {
+                        batch.Clear();
+                    }
                 }
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
@@ -87,7 +97,7 @@ public sealed class AuditLogProcessor : BackgroundService
             }
             catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
             {
-                _logger.LogError(ex, "【日志系统】写入审计日志批次发生异常");
+                _logger.LogError(ex, "【日志系统】审计日志处理循环发生异常");
                 await Task.Delay(1000, stoppingToken);
             }
         }
@@ -97,14 +107,35 @@ public sealed class AuditLogProcessor : BackgroundService
             batch.Add(item);
             if (batch.Count >= BatchSize)
             {
-                await FlushAuditBatchAsync(batch);
-                batch.Clear();
+                try
+                {
+                    await FlushAuditBatchAsync(batch);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "【日志系统】停机时写入审计日志批次发生异常");
+                }
+                finally
+                {
+                    batch.Clear();
+                }
             }
         }
 
         if (batch.Count > 0)
         {
-            await FlushAuditBatchAsync(batch);
+            try
+            {
+                await FlushAuditBatchAsync(batch);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "【日志系统】停机时写入剩余审计日志批次发生异常");
+            }
+            finally
+            {
+                batch.Clear();
+            }
         }
     }
 
@@ -137,8 +168,18 @@ public sealed class AuditLogProcessor : BackgroundService
 
                 if (batch.Count > 0)
                 {
-                    await FlushExceptionBatchAsync(batch);
-                    batch.Clear();
+                    try
+                    {
+                        await FlushExceptionBatchAsync(batch);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "【日志系统】写入异常日志批次发生异常，已安全丢弃本批次 {Count} 条日志以防止内存累积死循环", batch.Count);
+                    }
+                    finally
+                    {
+                        batch.Clear();
+                    }
                 }
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
@@ -147,7 +188,7 @@ public sealed class AuditLogProcessor : BackgroundService
             }
             catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
             {
-                _logger.LogError(ex, "【日志系统】写入异常日志批次发生异常");
+                _logger.LogError(ex, "【日志系统】异常日志处理循环发生异常");
                 await Task.Delay(1000, stoppingToken);
             }
         }
@@ -157,14 +198,35 @@ public sealed class AuditLogProcessor : BackgroundService
             batch.Add(item);
             if (batch.Count >= BatchSize)
             {
-                await FlushExceptionBatchAsync(batch);
-                batch.Clear();
+                try
+                {
+                    await FlushExceptionBatchAsync(batch);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "【日志系统】停机时写入异常日志批次发生异常");
+                }
+                finally
+                {
+                    batch.Clear();
+                }
             }
         }
 
         if (batch.Count > 0)
         {
-            await FlushExceptionBatchAsync(batch);
+            try
+            {
+                await FlushExceptionBatchAsync(batch);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "【日志系统】停机时写入剩余异常日志批次发生异常");
+            }
+            finally
+            {
+                batch.Clear();
+            }
         }
     }
 
@@ -175,17 +237,17 @@ public sealed class AuditLogProcessor : BackgroundService
 
         var entities = batch.Select(e => new AuditLog(
             userId: e.UserId,
-            username: e.Username,
-            module: e.Module,
-            action: e.Action,
-            method: e.Method,
-            path: e.Path,
+            username: Truncate(e.Username, 50),
+            module: Truncate(e.Module, 50) ?? string.Empty,
+            action: Truncate(e.Action, 100) ?? string.Empty,
+            method: Truncate(e.Method, 10) ?? string.Empty,
+            path: Truncate(e.Path, 256) ?? string.Empty,
             parameters: e.Parameters,
-            clientIp: e.ClientIp,
+            clientIp: Truncate(e.ClientIp, 50),
             durationMs: e.DurationMs,
             isSuccess: e.IsSuccess,
             errorMessage: e.ErrorMessage,
-            traceId: e.TraceId)).ToList();
+            traceId: Truncate(e.TraceId, 64))).ToList();
 
         await db.AuditLogs.AddRangeAsync(entities);
         await db.SaveChangesAsync();
@@ -199,22 +261,32 @@ public sealed class AuditLogProcessor : BackgroundService
         var db = scope.ServiceProvider.GetRequiredService<LoggingDbContext>();
 
         var entities = batch.Select(e => new ExceptionLog(
-            exceptionType: e.ExceptionType,
-            message: e.Message,
+            exceptionType: Truncate(e.ExceptionType, 200) ?? string.Empty,
+            message: e.Message ?? string.Empty,
             stackTrace: e.StackTrace,
-            path: e.Path,
-            method: e.Method,
-            queryString: e.QueryString,
+            path: Truncate(e.Path, 256) ?? string.Empty,
+            method: Truncate(e.Method, 10) ?? string.Empty,
+            queryString: Truncate(e.QueryString, 500),
             requestBody: e.RequestBody,
-            clientIp: e.ClientIp,
+            clientIp: Truncate(e.ClientIp, 50),
             userId: e.UserId,
-            username: e.Username,
-            traceId: e.TraceId)).ToList();
+            username: Truncate(e.Username, 50),
+            traceId: Truncate(e.TraceId, 64))).ToList();
 
         await db.ExceptionLogs.AddRangeAsync(entities);
         await db.SaveChangesAsync();
         _logger.LogDebug("【日志系统】已批量持久化 {Count} 条系统异常日志", batch.Count);
         ReportDroppedLogs();
+    }
+
+    private static string? Truncate(string? value, int maxLength)
+    {
+        if (string.IsNullOrEmpty(value) || value.Length <= maxLength)
+        {
+            return value;
+        }
+
+        return value[..maxLength];
     }
 
     private void ReportDroppedLogs()

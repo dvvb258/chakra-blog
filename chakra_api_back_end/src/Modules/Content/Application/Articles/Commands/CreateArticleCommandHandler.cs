@@ -54,11 +54,12 @@ public sealed class CreateArticleCommandHandler : ICommandHandler<CreateArticleC
             throw new BusinessException($"指定的分类ID [{req.CategoryId}] 不存在或已被删除", 400);
         }
 
-        // 方案 A 统一审核流：新建文章初始状态只能为【草稿 (Draft)】或【提交审核 (PendingReview)】
-        // 任何角色（包括管理员）新建文章均不可绕过审核流直接置为 Published，发布必须通过显式审核
-        var initialStatus = req.Status == (int)ArticleStatus.PendingReview
-            ? ArticleStatus.PendingReview
-            : ArticleStatus.Draft;
+        // 文章发布审核流：
+        // 管理员新建文章且指定 Published 时，允许免审直接发布上线；
+        // 非管理员角色新建文章，初始状态根据选择进入【草稿 (Draft)】或【提交审核 (PendingReview)】
+        var initialStatus = (command.IsAdmin && req.Status == (int)ArticleStatus.Published)
+            ? ArticleStatus.Published
+            : (req.Status == (int)ArticleStatus.PendingReview ? ArticleStatus.PendingReview : ArticleStatus.Draft);
 
         var article = new Article(
             title: req.Title.Trim(),

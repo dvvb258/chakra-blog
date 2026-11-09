@@ -55,7 +55,8 @@ public static class DependencyInjection
         services.AddScoped<IJwtTokenService, JwtTokenService>();
         services.AddScoped<IUserAccessValidator, UserAccessValidator>();
 
-        // 6. 注册动态 RBAC 权限验证器
+        // 6. 注册动态 RBAC 权限验证器（依赖进程内缓存，避免每个请求多次查库）
+        services.AddMemoryCache();
         services.AddScoped<SharedKernel.Application.Interfaces.IPermissionChecker, PermissionChecker>();
 
         // 7. 注册 GitHub OAuth 开放平台服务

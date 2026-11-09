@@ -27,7 +27,10 @@ export interface SkillMatrixItem {
  * 2. 基础功能（文章列表、分页、搜索、阅读耗时、分类、上一篇下一篇、代码复制等）一律直接写死通用技术规范词，严禁套用主题特定名词，无需额外配置。
  * 3. 避免过度配置，仅在关键展示位（标语、名片、页脚、彩蛋）提供配置入口。
  */
-export const siteConfig = {
+/**
+ * 站点配置默认值：后台「站点设置」只保存覆盖项，未覆盖的字段均回落此处
+ */
+export const defaultSiteConfig = {
   // 站点基础信息与 SEO
   name: 'Chakra',
   siteName: 'chakra.blog',
@@ -181,4 +184,95 @@ export const siteConfig = {
   },
 }
 
-export type SiteConfig = typeof siteConfig
+export type SiteConfig = typeof defaultSiteConfig
+
+/**
+ * 站点配置覆盖项（仅需包含要覆盖的字段，可任意层级）
+ */
+export type SiteConfigOverrides = Record<string, unknown>
+
+/** 禁止出现的字段名，防止覆盖 JSON 造成原型污染 */
+const FORBIDDEN_KEYS = new Set(['__proto__', 'constructor', 'prototype'])
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+/**
+ * 深合并配置覆盖项：数组整体替换，普通对象逐层合并，undefined 保留默认值。
+ */
+export function mergeSiteConfig<T>(base: T, patch: unknown): T {
+  if (!isPlainObject(base) || !isPlainObject(patch)) {
+    return (patch === undefined ? base : patch) as T
+  }
+
+  const merged: Record<string, unknown> = { ...base }
+  for (const [key, value] of Object.entries(patch)) {
+    // null 与 undefined 一律视为“未覆盖”，避免空值导致组件读取嵌套属性时报错
+    if (value === undefined || value === null || FORBIDDEN_KEYS.has(key)) continue
+    const current = merged[key]
+    merged[key] = isPlainObject(current) && isPlainObject(value)
+      ? mergeSiteConfig(current, value)
+      : value
+  }
+
+  return merged as T
+}
+
+/**
+ * 服务端当前生效的站点配置（由 getSiteConfig 读取后通过 applySiteConfig 写入）。
+ * 站点配置为全站单例，进程内共享即可，无需请求级隔离。
+ */
+let serverSiteConfig: SiteConfig | null = null
+
+/**
+ * 应用数据库中的配置覆盖项（仅服务端调用）
+ */
+export function applySiteConfig(overrides?: unknown): SiteConfig {
+  serverSiteConfig = mergeSiteConfig<SiteConfig>(defaultSiteConfig, overrides ?? {})
+  return serverSiteConfig
+}
+
+/**
+ * 站点配置读取代理：
+ * - 服务端：读取 applySiteConfig 写入的当前配置；
+ * - 客户端：读取 RootLayout 注入的 window.__CHAKRA_SITE__（服务端已合并后的完整配置），
+ *   避免客户端组件在模块初始化阶段拿不到数据库配置。
+ */
+export const siteConfig: SiteConfig = new Proxy(defaultSiteConfig, {
+  get(_target, property: string | symbol) {
+    const source =
+      typeof window !== 'undefined'
+        ? (window.__CHAKRA_SITE__ ?? defaultSiteConfig)
+        : (serverSiteConfig ?? defaultSiteConfig)
+    return Reflect.get(source, property)
+  },
+  has(_target, property: string | symbol) {
+    const source =
+      typeof window !== 'undefined'
+        ? (window.__CHAKRA_SITE__ ?? defaultSiteConfig)
+        : (serverSiteConfig ?? defaultSiteConfig)
+    return Reflect.has(source, property)
+  },
+  ownKeys() {
+    const source =
+      typeof window !== 'undefined'
+        ? (window.__CHAKRA_SITE__ ?? defaultSiteConfig)
+        : (serverSiteConfig ?? defaultSiteConfig)
+    return Reflect.ownKeys(source)
+  },
+  getOwnPropertyDescriptor(_target, property: string | symbol) {
+    const source =
+      typeof window !== 'undefined'
+        ? (window.__CHAKRA_SITE__ ?? defaultSiteConfig)
+        : (serverSiteConfig ?? defaultSiteConfig)
+    return Reflect.getOwnPropertyDescriptor(source, property)
+  },
+})
+
+declare global {
+  interface Window {
+    /** 由 RootLayout 在 HTML 中注入的完整站点配置（服务端已合并数据库覆盖项） */
+    __CHAKRA_SITE__?: SiteConfig
+  }
+}

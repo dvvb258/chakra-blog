@@ -31,7 +31,7 @@ import { useNavigate } from 'react-router-dom'
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { useAuthStore } from '@/stores/authStore'
-import { FRONT_URL } from '@/config/brand'
+import { getFrontUrl } from '@/config/brand'
 import * as articlesApi from '@/api/articles'
 import * as categoriesApi from '@/api/categories'
 import PermissionGuard from '@/components/PermissionGuard'
@@ -216,7 +216,7 @@ export default function ArticleList() {
               <Tooltip title="在公开前台查看">
                 <ExportOutlined
                   style={{ color: '#94a3b8', fontSize: 12, cursor: 'pointer' }}
-                  onClick={() => window.open(`${FRONT_URL}/articles/${record.id}`, '_blank')}
+                  onClick={() => window.open(`${getFrontUrl()}/articles/${record.id}`, '_blank')}
                 />
               </Tooltip>
             </Space>
@@ -391,8 +391,8 @@ export default function ArticleList() {
               </PermissionGuard>
             )}
 
-            {/* 若是作者本人显示【编辑】；若不是本人且为管理员显示【查看/审阅】 */}
-            {isOwner ? (
+            {/* 作者本人或超级管理员均具备【编辑】权限 */}
+            {(isOwner || isAdmin) ? (
               <PermissionGuard code={PERMISSIONS.ARTICLE_EDIT}>
                 <Button
                   type="link"
@@ -404,16 +404,14 @@ export default function ArticleList() {
                 </Button>
               </PermissionGuard>
             ) : (
-              isAdmin && (
-                <Button
-                  type="link"
-                  size="small"
-                  icon={<EyeOutlined />}
-                  onClick={() => navigate(`/articles/${record.id}/edit`)}
-                >
-                  {record.status === ArticleStatus.PendingReview ? '审阅' : '查看'}
-                </Button>
-              )
+              <Button
+                type="link"
+                size="small"
+                icon={<EyeOutlined />}
+                onClick={() => navigate(`/articles/${record.id}/edit`)}
+              >
+                查看
+              </Button>
             )}
 
             {/* 作者可删除自己的文章，管理员具备运维违规清理权 */}

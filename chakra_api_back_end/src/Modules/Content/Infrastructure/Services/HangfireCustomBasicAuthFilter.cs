@@ -1,4 +1,5 @@
 using System.Net.Http.Headers;
+using System.Security.Cryptography;
 using System.Text;
 using Hangfire.Dashboard;
 using Microsoft.AspNetCore.Http;
@@ -43,8 +44,8 @@ public sealed class HangfireCustomBasicAuthFilter : IDashboardAuthorizationFilte
                     var user = credentials[0];
                     var pass = credentials[1];
 
-                    if (string.Equals(user, _username, StringComparison.Ordinal)
-                        && string.Equals(pass, _password, StringComparison.Ordinal))
+                    // 使用常量时间比较，避免通过响应耗时逐字符探测口令
+                    if (FixedTimeEquals(user, _username) & FixedTimeEquals(pass, _password))
                     {
                         return true;
                     }
@@ -58,6 +59,15 @@ public sealed class HangfireCustomBasicAuthFilter : IDashboardAuthorizationFilte
 
         SetChallengeResponse(httpContext);
         return false;
+    }
+
+    private static bool FixedTimeEquals(string? left, string? right)
+    {
+        var leftBytes = Encoding.UTF8.GetBytes(left ?? string.Empty);
+        var rightBytes = Encoding.UTF8.GetBytes(right ?? string.Empty);
+
+        return leftBytes.Length == rightBytes.Length
+            && CryptographicOperations.FixedTimeEquals(leftBytes, rightBytes);
     }
 
     private static void SetChallengeResponse(HttpContext httpContext)

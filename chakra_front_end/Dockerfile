@@ -20,11 +20,13 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
-# 传入构建期参数（用于 Next.js 静态内联优化与 rewrites 反向代理规则生成）
-ARG NEXT_PUBLIC_SITE_URL=http://localhost:3000
-ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
+# 构建期参数：
+# - INTERNAL_API_BASE_URL 会固化进 rewrites 反向代理规则
+# - NEXT_PUBLIC_SITE_URL 仅作为站点地址的默认回退值（实际站点信息由后台「站点设置」运行期覆盖）
 ARG INTERNAL_API_BASE_URL=http://blogapi:8080/api
 ENV INTERNAL_API_BASE_URL=$INTERNAL_API_BASE_URL
+ARG NEXT_PUBLIC_SITE_URL=http://localhost:3000
+ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 
 RUN npm run build
 
