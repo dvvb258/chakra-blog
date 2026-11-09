@@ -1,6 +1,6 @@
 # Chakra 全栈博客二次开发与垂直切片扩展指南 (Development Guide)
 
-本文档面向**人类工程师**以及 **LLM 智能编程代理（如 Claude Code, Cursor, Copilot 等）**，系统阐述 Chakra 博客的技术架构、分层规范与新增功能端到端操作步骤（SOP），以确保系统后续迭代具有高度的架构自洽性与代码质量。
+本文档阐述 Chakra 博客的技术架构、分层规范与二次开发操作流程（SOP），用于指导新功能扩展与代码维护。
 
 ---
 
@@ -13,7 +13,7 @@
 5. [展示前台 (Next.js 15 App Router) 新增功能 SOP](#5-展示前台-nextjs-15-app-router-新增功能-sop)
 6. [雪花 ID 与数据精度安全准则](#6-雪花-id-与数据精度安全准则)
 7. [质量门禁与自动化测试规范](#7-质量门禁与自动化测试规范)
-8. [给 LLM (AI Agent) 的严守准则](#8-给-llm-ai-agent-的严守准则)
+8. [代码质量与开发规范](#8-代码质量与开发规范)
 
 ---
 
@@ -38,7 +38,7 @@ chakra-blog/
 
 ## 2. 本地快速起步与调试工作流
 
-本地裸机开发支持开箱即用，**无需手动创建任何 `.env` 文件**。
+本地开发环境下已预置默认连接参数，无需创建或修改 `.env` 文件。
 
 ### 步骤 1：启动本地 PostgreSQL 数据库
 ```bash
@@ -179,7 +179,7 @@ public async Task<IActionResult> SubscribeAsync(long id, [FromBody] SubscribeSer
 管理端前端统一基于 Ant Design 5 深色调与 Axios 封装，新增功能需遵循以下步骤：
 
 ### 第 1 步：在 `src/types/index.ts` 声明对齐接口
-> **极其重要**：所有雪花 ID 字段声明为 `string | number` 或 `string`，**严禁在交互中强行转为 `Number(id)`**！
+> **说明**：雪花 ID 超出 JavaScript 安全整数范围（$2^{53} - 1$），字段须声明为 `string` 或 `string | number`，禁止转换为 `Number(id)`。
 
 ```typescript
 export interface SubscribeSeriesRequest {
@@ -215,7 +215,7 @@ import { PERMISSIONS } from '@/constants/permissions'
 
 ### 1. 服务端网络与双通道请求机制
 * **服务端数据拉取 (SSR / Server Component)**：直接在 `page.tsx` 中调用统一适配层 `src/lib/api.ts`。Node.js 内部自动直连 `INTERNAL_API_BASE_URL`；
-* **浏览器客户端交互 (Client Component)**：客户端只请求相对路径 `/api/*`，由 `next.config.mjs` 中的 `rewrites()` 反向代理转发至后端，无任何跨域问题；
+* **浏览器客户端交互 (Client Component)**：客户端只请求相对路径 `/api/*`，由 `next.config.mjs` 中的 `rewrites()` 反向代理转发至后端，避免跨域限制；
 * **缓存策略**：`RootLayout` 已全站声明 `export const dynamic = 'force-dynamic'`，用于保证运行期站点配置与最新文章数据即时生效；
   * 子页面**不要**再声明 `export const revalidate` 期望 ISR —— 它会被子布局的 `force-dynamic` 覆盖，容易造成误解；
   * 数据层的秒级缓存请使用 `fetch(..., { next: { revalidate: N } })`（`src/lib/api.ts` 已统一处理）。
@@ -252,8 +252,8 @@ import { PERMISSIONS } from '@/constants/permissions'
 
 * **后端序列化规则**：已注册 `LongToStringJsonConverter`，所有对外输出的 64 位 ID 在 JSON 报文中均强制为字符串；
 * **前端使用规则**：
-  * ❌ **严禁**：`Number(id)`, `parseInt(id)`；
-  * ✅ **正确**：保持为 `string`，如需兜底使用 `String(id)`。
+  * 禁止使用：`Number(id)`、`parseInt(id)`；
+  * 规范使用：保持为 `string` 类型，如需类型转换使用 `String(id)`。
 
 ---
 
@@ -281,12 +281,12 @@ cd chakra_front_end && npm run build
 
 ---
 
-## 8. 给 LLM (AI Agent) 的严守准则
+## 8. 代码质量与开发规范
 
-如果您作为大模型 Coding Agent 在本仓库中生成或修改代码，请无条件遵守以下铁律：
+在仓库中进行代码编写与修改时，须遵循以下规范：
 
-1. **测试覆盖**：新增业务逻辑或修复缺陷时，应在 `tests/Chakra.Tests.Unit` 补充对应单元测试，并确保 `dotnet test` 全绿；涉及权限、路径、雪花 ID 的改动必须附带测试；
-2. **严防雪花 ID 截断**：前端组件中**绝对不允许**引入 `Number(id)` 转换逻辑；
-3. **保持超管放行特权 (Admin Bypass)**：在编写命令处理器（CommandHandler）时，涉及文章、专栏、分类的所有权或审核判断，必须校验 `if (!command.IsAdmin && ...)`，确保超级管理员对全站资源拥有完整的管理权限；
-4. **统一响应契约**：Controller 绝不直接返回裸数据或原生 `Ok(...)`，必须统一调用 `Success(data, message)` 返回 `ApiResult<T>`；
-5. **路径安全**：任何处理本地持久化文件操作（保存、读取、删除）的代码，必须调用 `Path.GetFullPath` 校验其严格受限于目标根目录内，杜绝路径穿越（Path Traversal）。
+1. **测试覆盖**：新增业务逻辑或修复缺陷时，应在 `tests/Chakra.Tests.Unit` 补充对应单元测试，并确保测试全部通过；涉及权限、文件路径、雪花 ID 的改动须补充测试用例；
+2. **雪花 ID 精度保护**：前端组件禁止引入 `Number(id)` 或 `parseInt(id)` 转换逻辑，统一使用字符串传递；
+3. **管理员权限放行 (Admin Bypass)**：编写命令处理器（CommandHandler）时，涉及文章、专栏、分类的所有权或审核判断，须校验 `if (!command.IsAdmin && ...)`，确保超级管理员对全站资源具备管理权限；
+4. **统一响应契约**：Controller 禁止直接返回未包装数据或原生 `Ok(...)`，须调用 `Success(data, message)` 返回 `ApiResult<T>`；
+5. **文件路径安全**：处理本地文件操作（保存、读取、删除）时，须调用 `Path.GetFullPath` 校验路径限制在指定根目录内，防止路径遍历（Path Traversal）。

@@ -99,7 +99,7 @@ chakra_api_back_end/
   - 暴露 `GET /api/admin/menus/permissions-metadata` 接口提供系统权限字典，前端配置时通过下拉联想输入。
 - **基于权限代码的策略鉴权**：
   - 控制器 Action 统一使用 `[RequirePermission(...)]` 守卫，支持多权限 OR 判定。
-  - 超管角色天然拥有 `*` 通配权限（Bypass 模式）；自定义角色通过 `RoleMenu` 关联动态赋权。
+  - 超级管理员拥有 `*` 通配权限；自定义角色通过 `RoleMenu` 关联动态赋权。
   - 前端配合 `<PermissionGuard code="...">` 组件实现按钮级显隐与禁用。
 
 ### 6. 第三方供应商可插拔抽象规范 (SPI / Provider Pattern)
@@ -160,9 +160,9 @@ chakra_api_back_end/
 
 ---
 
-## 开源友好设计原则
+## 系统设计与可扩展性原则
 
-1. **Redis 弱依赖与平滑降级**：
+1. **Redis 可选与单机降级**：
    - 定时任务调度锁与文章源抢占锁在未启用 Redis 时自动回退为单机进程内互斥锁（`SemaphoreSlim`）。
    - 全站访问量统计基于 PostgreSQL 原生原子操作持久化，无需额外缓存依赖，单机低配环境平稳运行。
 2. **零外部存储依赖**：

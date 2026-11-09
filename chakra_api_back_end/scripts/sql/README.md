@@ -19,7 +19,7 @@ psql -d <database> -f scripts/sql/init.sql
 ### 工作机制
 
 1. **版本跟踪表**：系统自动在数据库创建 `__schema_migrations` 记录表，维护已执行的迁移版本号、描述与应用时间。
-2. **嵌入式资源**：所有放置在 `scripts/sql/upgrade/*.sql` 的增量脚本在编译期自动嵌入 `ApiHost.dll` 中，即使直接拉取预构建 Docker 镜像，也无需映射或拷贝 SQL 文件即可开箱即用自动升级。
+2. **嵌入式资源**：所有放置在 `scripts/sql/upgrade/*.sql` 的增量脚本在编译期自动嵌入 `ApiHost.dll` 中，拉取预构建 Docker 镜像无需额外挂载 SQL 文件即可自动完成升级。
 3. **事务安全性**：每个迁移脚本均在独立的原子事务中执行，执行成功后立即登记版本；若脚本执行失败，将自动回滚事务并阻断应用启动，防止数据库处于中间损坏状态。
 4. **幂等与兜底**：除了程序集内置资源外，Migrator 还支持本地目录扫描，方便离线开发与排查。
 
@@ -36,7 +36,7 @@ psql -d <database> -f scripts/sql/init.sql
 2. 保持 DDL 语句幂等（尽量使用 `IF NOT EXISTS`、`ON CONFLICT DO NOTHING`）。
 3. 重新构建或发布 Docker 镜像；当后端容器启动时，将自动检测到新脚本并执行应用。
 
-*(可选)* 若需手动离线执行：
+### 手动执行方式（可选）
 
 ```bash
 # Linux / macOS

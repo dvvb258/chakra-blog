@@ -19,7 +19,7 @@ chakra-blog/
 | 项目 | 技术栈 | 默认端口 | 职责定位 |
 |---|---|---|---|
 | **chakra_front_end** | Next.js 15, React 19, Tailwind CSS, Prism.js | 3000 | 昼夜双主题展示、Canvas 动态粒子交互、仿终端微件、服务端流式渲染与统计上报。 |
-| **chakra_api_back_end** | .NET 10, EF Core 10, Dapper, MediatR, PostgreSQL, Hangfire | 5000 / 5001 | 垂直切片 CQRS 架构，雪花 ID 字符串化，三级 RBAC 权限体系，支持 Redis 任务锁与单机进程互斥锁平滑降级，Local/S3 存储自由切换。 |
+| **chakra_api_back_end** | .NET 10, EF Core 10, Dapper, MediatR, PostgreSQL, Hangfire | 5000 / 5001 | 垂直切片 CQRS 架构，雪花 ID 字符串化，三级 RBAC 权限体系，支持 Redis 分布式锁与单机互斥锁降级，支持 Local/S3 存储切换。 |
 | **chakra_management_front_end** | React 19, Vite 6, TypeScript, Ant Design 5, Zustand 5 | 3101 | 双 Token 认证、文章与专栏 CRUD、分类维护、系统日志看板、ECharts 统计看板与动态菜单树。 |
 
 ---
@@ -40,8 +40,8 @@ chakra-blog/
   - **设计系统 Token 规范**：
     - **单一事实来源**：通过 `src/config/theme.ts` 与 `src/app/globals.css` 中的 CSS RGB 通道变量驱动（`--theme-primary`, `--theme-secondary`, `--theme-border`, `--theme-surface`, `--theme-text`, `--theme-muted`, `--theme-bg` 等），实体映射变量为 `--theme-color-*`，Tailwind 统一映射 `theme-*` 语义类；
     - **双主题调色板**：
-      - **日间模式**：主色金橙（`#f59e0b`），辅色深橙（`#ea580c`），底色象牙暖白（`#fffdfa`）；
-      - **夜间模式**：主色极光青蓝（`#06b6d4`），辅色冷紫（`#8b5cf6`），底色深邃黑蓝（`#080c16`）；
+      - **日间模式**：主色金橙（`#f59e0b`），辅色深橙（`#ea580c`），背景暖白（`#fffdfa`）；
+      - **夜间模式**：主色青蓝（`#06b6d4`），辅色冷紫（`#8b5cf6`），背景深蓝黑（`#080c16`）；
     - **视觉样式规范**：主要按钮、分类高亮、置顶徽标与页码采用实体主题色搭配 1px 微边框与轻量阴影；渐变效果仅保留在动态光效与 Canvas 粒子渲染场景；
     - **全局统一换色**：调整全站色彩仅需在 `theme.ts` 或 `globals.css` 中修改对应的 Hex / RGB 色值，卡片、边框、按钮及悬停状态自动联动生效。
   - **开屏动效感知**：
@@ -73,7 +73,7 @@ chakra-blog/
   12. `src/app/not-found.tsx`（404 插图）；
   13. `public/images/naruto/`（相关静态 WebP 图片资源）。
 - **数据流与渲染策略**：
-  - **全量真实数据驱动**：接口异常或为空时采用统一空状态组件优雅降级。
+  - **数据驱动渲染**：接口异常或数据为空时展示统一空状态组件。
   - **双通道网络转发**：服务端 SSR（Node.js）直连后端内网 `INTERNAL_API_BASE_URL`；客户端统一请求相对路径 `/api/*`，由 Next.js `rewrites` 代理转发。
   - **动态流式渲染**：首页与专栏页显式声明 `export const dynamic = 'force-dynamic'`，配合 React `Suspense` 与 `TacticalLoader` 骨架占位。
   - **封面地址解析**：`resolveCoverImage` 优先使用接口返回的 `coverUrl`，未提供时平滑回退至 `siteConfig.defaultCover`。
@@ -112,7 +112,7 @@ chakra-blog/
 - **核心模块端点**：
   - **Identity 认证模块**：
     - `POST /api/auth/login`：账号密码登录（签发 AccessToken + RefreshToken）
-    - `POST /api/auth/refresh`：无感续期（令牌轮换）
+    - `POST /api/auth/refresh`：静默续期（令牌轮换）
     - `POST /api/auth/revoke`：撤销令牌注销登录
     - `GET /api/auth/me`：获取当前登录人资料
     - `PUT /api/auth/profile`：修改个人资料
@@ -142,8 +142,8 @@ chakra-blog/
 
 - **技术栈**：React 19, Vite 6, TypeScript, Ant Design 5, Zustand 5, Axios, React Router 7
 - **核心功能体系**：
-  1. **双 Token 认证与无感续期**：Axios 拦截器集成单并发互斥续期锁，支持账号密码登录与 GitHub OAuth 快捷登录。
-  2. **管理控制台视觉**：Ant Design 5 深色主题，定制机能灰阶调色。
+  1. **双 Token 认证与静默续期**：Axios 拦截器集成单并发互斥续期锁，支持账号密码登录与 GitHub OAuth 快捷登录。
+  2. **管理控制台视觉**：Ant Design 5 深色主题，适配暗色灰阶。
   3. **内容创作工作台**：
      - 文章管理：多维筛选、分页、浏览量统计与软删除。超级管理员具备全站文章（含协作者与 AI 生成文章）的直达编辑与免审直接发布上线权。
      - Markdown 创作：分屏实时预览、自动字数与阅读耗时预估、内联分类免跳出快速新建、端到端乐观并发版本锁（Version）。
@@ -190,12 +190,11 @@ chakra-blog/
 
 ---
 
-## 开源架构与可插拔设计 (SPI Pattern)
+## 系统架构与扩展性设计 (SPI Pattern)
 
-1. **Redis 弹性降级**：通过 `Redis:Enabled` 开关控制。用于后台 AI 抓取与生成任务的分布式排他锁；关闭时自动降级为单机进程内互斥锁（`SemaphoreSlim`），单机低配环境平稳运行。全站访问量统计基于 PostgreSQL 原生原子写入持久化，无需额外缓存依赖。
-2. **多 Provider 对象存储**：提供 `LocalStorageService`（本地磁盘 `/uploads` 持久卷）与 `S3StorageService`（兼容 MinIO / 阿里云 OSS / AWS S3 / Cloudflare R2），通过 `Storage:Provider` 灵活切换。
-3. **第三方登录与 AI 软开关**：系统未配置对应参数时安全拦截，并通过 `GET /api/system/public-config` 接口向前端广播特性状态，前端自适应显隐入口。
-4. **标准配置模板化**：敏感凭据全量脱敏，本地开发 0 配置开箱即用，容器化部署全站仅需维护根目录唯一的 `.env.example` 模板。
-5. **极简配置心智模型**：
-   - **本地裸机运行**：拉取代码直接启动，三个子工程开箱互通，开发者无需新建或修改任何 `.env` 文件；
-   - **Docker 一键部署**：全站仅认根目录单一 `.env` 入口，通过 `docker compose up -d` 统一接线注入，无需进入子目录查找或配置任何文件。
+1. **Redis 可选与降级策略**：通过 `Redis:Enabled` 开关控制。启用时用于后台 AI 任务调度分布式排他锁；未启用时自动降级为单机进程内互斥锁（`SemaphoreSlim`）。全站访问量统计基于 PostgreSQL 原子写入持久化，无强制缓存依赖。
+2. **对象存储抽象 (SPI)**：提供 `LocalStorageService`（本地持久化目录 `/uploads`）与 `S3StorageService`（兼容 MinIO / 阿里云 OSS / AWS S3 / Cloudflare R2），通过 `Storage:Provider` 配置切换。
+3. **特性探测与按需启用**：未配置第三方登录或 AI 相关参数时，接口返回标准错误提示，并通过 `GET /api/system/public-config` 向前端广播已启用的功能特性，前端自适应调整界面入口。
+4. **配置注入规范**：
+   - **本地开发**：各子工程已配置默认连接参数，可直接独立启动；
+   - **容器化部署**：由根目录 `.env` 文件统一注入环境变量，无需修改子工程配置。

@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with th
 
 - **核心定位**：博客内容创作、专栏组织、文章分类、系统审计与运行监控、RBAC 细粒度权限治理工作台。
 - **视觉风格**：基于 Slate 灰阶调色的深色主题，全站组件统一适配。
-- **状态与认证**：双 Token（AccessToken + RefreshToken）无感刷新、单并发排队续期锁、GitHub OAuth 登录与账号绑定。
+- **状态与认证**：双 Token（AccessToken + RefreshToken）静默刷新、单并发排队续期锁、GitHub OAuth 登录与账号绑定。
 - **特性探测驱动**：根据后端特性探测接口（`GET /api/system/public-config`）动态自适应功能显隐（如 GitHub 快捷登录）。
 
 ---

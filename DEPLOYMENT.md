@@ -21,10 +21,10 @@
 
 ## 方式一：Docker Compose 一键部署（生产推荐）
 
-### 1. 配置环境变量（可选，默认配置开箱即用）
+### 1. 配置环境变量（可选）
 ```bash
 cp .env.example .env
-# 生产环境安全建议：请修改 .env 中的：
+# 生产环境安全建议：修改 .env 中的以下配置：
 # 1. JWT_SECRET（认证签名强密钥，至少 32 字符；生成方式：openssl rand -base64 48）
 # 2. POSTGRES_PASSWORD（数据库密码）
 # 3. HANGFIRE_PASSWORD（后台任务控制面板 Basic 认证密码）
@@ -33,13 +33,13 @@ cp .env.example .env
 ### 2. 启动服务（提供两种运行模式）
 
 #### 模式 A：预构建镜像模式（生产推荐）
-直接拉取预先构建发布的官方标准镜像运行，无需在宿主机安装编译依赖环境，资源开销低且部署启动迅速：
+直接拉取官方标准镜像运行，无需在宿主机安装开发编译环境：
 ```bash
 docker compose up -d
 ```
 
 #### 模式 B：本地源码构建模式（二次开发）
-站点信息（站名、SEO、文案等）可在后台「站点设置」中修改，无需重新构建；仅当修改 UI 素材、组件或后端业务代码时，才需传入 `--build` 参数在本地执行全量构建后启动：
+站点基础信息（站名、SEO、文案等）可在管理后台「站点设置」中在线维护；当修改前端源码、UI 组件或后端业务代码时，需传入 `--build` 参数在本地重新构建镜像：
 ```bash
 docker compose up -d --build
 ```
@@ -53,16 +53,16 @@ docker compose up -d --build
 - **初始超级管理员凭据**：
   - 用户名：`admin`
   - 初始密码：`AdminPassword123!`
-  - *(首次登录后请前往【个人中心】修改默认密码)*
+  - *(首次登录后请前往「个人中心」修改密码)*
 - **Hangfire 控制台凭据**：
   - 用户名：`admin` (可通过 `HANGFIRE_USERNAME` 配置)
-  - 密码：可通过 `HANGFIRE_PASSWORD` 配置（默认 `AdminPassword123!`，生产请务必覆盖）
+  - 密码：可通过 `HANGFIRE_PASSWORD` 配置（默认 `AdminPassword123!`，生产环境须修改）
 
 ---
 
 ## 方式二：本地研发模式 (Local Development)
 
-本地研发模式下，子工程已预置开箱即用开发配置，**无需创建或修改任何 `.env` 文件**。
+本地研发模式下各子工程已配置默认连接参数，无需创建或修改 `.env` 文件。
 
 ### 1. 启动本地数据库
 ```bash
@@ -103,10 +103,12 @@ npm run dev
 
 ## 生产域名与 Nginx 反向代理配置
 
-### 为什么推荐“容器内网运行 + 宿主机 Nginx 网关”？
-- **域名优雅分流**：前台（3000）、管理后台（3101）和 API（5000）可在单一服务器上通过二级域名统一使用标准 80/443 端口，无需对外暴露非常规端口；
-- **统一 HTTPS/SSL 证书管理**：由宿主机 Nginx 集中处理 TLS 终结与 Certbot 自动续期，无需将证书文件分散拷贝至各个 Docker 容器内部；
-- **避免端口冲突**：若服务器已安装宝塔面板、1Panel 或已有 Web 站点，容器不会强占 80/443 端口，兼容性最佳。
+### 架构说明：容器内网运行 + 宿主机 Nginx 反向代理
+
+推荐通过宿主机 Nginx 统一反向代理容器服务：
+- **多子域名路由与端口收敛**：前台（3000）、管理后台（3101）与 API（5000）通过独立二级域名映射至标准 80/443 端口，无需对外暴露非常规端口；
+- **集中化 TLS/SSL 证书管理**：由宿主机 Nginx 集中处理 TLS 终结与证书续期，避免将证书文件复制至各个容器内部；
+- **端口隔离**：容器服务不直接占用宿主机 80/443 端口，避免与现有 Web 站点或管理面板冲突。
 
 若在云服务器上使用独立主域名对外提供服务，推荐在宿主机 Nginx（或宝塔 / 1Panel 反代）中配置如下规则：
 
@@ -194,7 +196,7 @@ server {
 
 ## 可选扩展功能按需配置
 
-系统采用低外部依赖架构，默认使用单机文件存储与数据库统计，零外部依赖即可完整运行。如需接入外部云服务，直接在根目录 `.env` 中按需取消对应注释并填入凭据即可，无需修改任何子目录代码或 Dockerfile：
+系统默认采用本地磁盘存储与数据库内统计，无需依赖第三方云服务即可运行。若需接入外部云服务，直接在根目录 `.env` 中按需配置对应参数即可：
 
 ### 1. 接入 S3 兼容对象存储 (MinIO / 阿里云 OSS / AWS S3 / Cloudflare R2)
 在 `.env` 中设置：
@@ -252,12 +254,12 @@ CORS_ALLOWED_ORIGINS=https://myblog.com,https://admin.myblog.com
 - **留空即默认**：未覆盖的字段自动回落 `chakra_front_end/src/config/site.ts` 中的默认值；点击「恢复默认」可清空全部覆盖；
 - **站点地址一致性**：后台填写的「站点地址」用于 SEO / RSS / Sitemap，后端 CORS 白名单仍读取 `.env` 的 `NEXT_PUBLIC_SITE_URL`，两者建议保持一致。
 
-### 已有部署升级数据库（全自动）
+### 增量数据库升级机制
 
-后端内置了 **启动期数据库自动迁移机制 (`DatabaseMigrator`)**：
-- 新版本镜像启动时，会自动检测并按序执行未应用的增量 SQL 脚本（如 `001_site_settings.sql`），并在数据库 `__schema_migrations` 表中登记；
-- **用户拉取新镜像重启后无需任何手动 SQL 操作**，容器启动日志中会输出迁移执行进度；
-- 若因特殊排错需要手动执行，亦可通过以下命令手工应用：
+后端内置启动期数据库迁移器（`DatabaseMigrator`）：
+- 服务启动时自动检测并按序执行未应用的增量 SQL 脚本（如 `001_site_settings.sql`），并在 `__schema_migrations` 表中记录迁移版本；
+- 镜像更新重启后自动完成数据库结构同步，无需手动执行 SQL 脚本；
+- 如需离线排查或手动执行，可通过以下命令应用：
 
 ```bash
 # Linux / macOS (可选手动执行)
@@ -285,10 +287,10 @@ docker compose logs -f blogapi
 # 查看全部容器日志
 docker compose logs -f
 
-# 停止全套服务（保留数据库数据与已上传图片）
+# 停止容器服务（保留数据库数据与持久化文件）
 docker compose down
 
-# 彻底重置并重新初始化数据库（⚠️ 危险：清空全部业务数据与数据卷，重新执行 init.sql）
+# 停止容器并删除持久化数据卷（清空全部数据库数据，重新执行 init.sql）
 docker compose down -v
 
 # 代码更新后重新构建并启动
@@ -296,7 +298,8 @@ git pull
 docker compose up -d --build
 ```
 
-### 💡 数据库初始化提示 (`init.sql` 与 `-v` 参数)
-PostgreSQL 官方镜像机制决定：`init.sql` **仅在数据库卷初次创建（目录为空）时自动执行一次**。
-- **日常重启 / 更新代码**：执行 `docker compose down && docker compose up -d`，PostgreSQL 会保留已有数据，不会重复执行 `init.sql`；
-- **重置数据库**：如果您修改了 `init.sql`，或者在测试阶段希望**彻底清空旧数据重新建表**，必须执行 `docker compose down -v`（销毁 volume 数据卷），随后再次 `docker compose up -d` 即可自动重新执行 `init.sql`。
+### 数据库初始化与重置机制
+
+PostgreSQL 官方容器机制：`/docker-entrypoint-initdb.d/` 目录下的 `init.sql` **仅在数据卷初次创建（目录为空）时执行一次**。
+- **日常更新与重启**：执行 `docker compose down && docker compose up -d`，PostgreSQL 保留已有数据，不重复执行 `init.sql`；
+- **重置数据库**：若修改了 `init.sql` 或需重置数据库环境，须执行 `docker compose down -v`（删除持久化数据卷），再次启动时将自动重新执行 `init.sql` 进行初始化。

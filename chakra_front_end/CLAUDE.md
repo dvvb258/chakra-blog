@@ -72,9 +72,9 @@ npm run start
 
 - **单一事实来源**：
   - 由 `src/config/theme.ts` 与 `src/app/globals.css` 中的 CSS RGB 通道变量统一驱动（`--theme-primary`, `--theme-secondary`, `--theme-border`, `--theme-surface`, `--theme-text`, `--theme-muted`, `--theme-bg` 等），实体映射变量为 `--theme-color-*`，Tailwind 统一映射 `theme-*` 语义类。
-- **双生主题调色板**：
-  - **白天模式**：主色木叶暖阳金橙（`#f59e0b`），辅色烈橙红（`#ea580c`），底色晨曦象牙白（`#fffdfa`）；
-  - **夜间模式**：主色千鸟极光冰蓝青（`#06b6d4`），辅色冷紫（`#8b5cf6`），底色黑曜夜空蓝（`#080c16`）。
+- **双主题调色板**：
+  - **日间模式**：主色金橙（`#f59e0b`），辅色深橙（`#ea580c`），背景暖白（`#fffdfa`）；
+  - **夜间模式**：主色青蓝（`#06b6d4`），辅色冷紫（`#8b5cf6`），背景深蓝黑（`#080c16`）。
 - **样式规范**：
   - 按钮、卡片、徽标、标签采用实体主题色搭配 1px 微边框与微阴影，渐变仅在动态光效与 Canvas 场景使用。
 - **文章排版**：
@@ -96,9 +96,9 @@ npm run start
 | 序号 | 组件 / 模块路径 | 组件功能说明 | 包含的主题元素 | 更换新主题时的替换方案 |
 |:---:|:---|:---|:---|:---|
 | **1** | `src/components/home/NarutoCharacter.tsx`<br>& `naruto-visual.module.css` | 首页角色交互立绘：昼夜等比胸像特写，手心带视差追踪，触碰触发屏幕微震颤与粒子释放 | 鸣人与佐助立绘；掌心施术位点（鸣人 `28%, 64%`；佐助 `55%, 70%`） | 替换立绘图片，在 CSS 中微调触碰坐标（`.contact` 的 `top/left`）；或替换为通用产品架构图。 |
-| **2** | `src/components/home/ChakraJutsuCanvas.tsx` | 实时能量粒子 Canvas 引擎：支持待机微动效与全量点击释放双模态 | 螺旋丸（向心粒子）与千鸟（分形跳跃闪电束） | 调整 Canvas 粒子算法（如改为星空引力微粒或极光波形）；组件参数 `mode='idle'/'full'` 已解耦。 |
+| **2** | `src/components/home/ChakraJutsuCanvas.tsx` | 实时粒子 Canvas 渲染引擎：支持待机与触发两种渲染模态 | 向心粒子与分形闪电 | 调整 Canvas 粒子算法（如改为引力微粒或波形）；组件参数 `mode='idle'/'full'` 已解耦。 |
 | **3** | `src/components/theme/ThemeToggle.tsx` | 昼夜模式切换按钮：顶部导航栏右侧，点击触发回旋与全屏转场 | 漩涡族徽（深红旋涡）与宇智波团扇（红白圆形）SVG 矢量 | 将内部图标替换为新主题标志，或使用通用的 Sun / Moon 图标。 |
-| **4** | `src/components/theme/NinjaThemeTransition.tsx` | 全屏昼夜能量转场：切换主题时屏幕中心扩散光波并展开图腾（650ms 自动卸载） | 夜间展现三勾玉写轮眼开眼动画；白天展现木叶标志图腾 | 替换转场中央的 SVG 图标，扩散光环颜色已自动关联 CSS 变量。 |
+| **4** | `src/components/theme/NinjaThemeTransition.tsx` | 全屏昼夜转场动效：切换主题时屏幕中心扩散并展示对应矢量图腾（650ms 自动卸载） | 昼夜主题对应矢量图腾动画 | 替换转场中央的 SVG 图标，扩散光环颜色已自动关联 CSS 变量。 |
 | **5** | `src/components/articles/CodeBlock.tsx` | 文章代码块与复制交互：Prism 高亮代码框，右上角提示“复制代码”，点击复制触发微动效 | 复制代码成功后弹出的写轮眼旋转微动效（`SharinganEyeIcon`） | 将 `SharinganEyeIcon` 替换为标准 Check 勾选图标。 |
 | **6** | `src/components/ui/BackToTop.tsx`<br>& `siteConfig.backToTop` | 回到顶部悬浮按钮：滚动超 400px 浮现，点击平滑回顶 | 特制三叉苦无资产（`hiraishin-kunai.webp`）与金色光效 | 在 `siteConfig.backToTop` 中配置新图标路径、alt 与文案，或替换为通用向上箭头。 |
 | **7** | `src/app/not-found.tsx`<br>& `siteConfig.notFound` | 404 缺省页：返回首页与归档入口引导 | 卡卡西迷路立绘插图（`kakashi-lost.webp`） | 在 `siteConfig.notFound.image` 中配置新插图路径与 alt。 |
