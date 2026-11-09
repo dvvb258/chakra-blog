@@ -40,7 +40,7 @@ jobs:
 
     steps:
       - name: 检出代码
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: 登录 GitHub Container Registry (GHCR)
         run: |
