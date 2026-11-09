@@ -252,15 +252,18 @@ CORS_ALLOWED_ORIGINS=https://myblog.com,https://admin.myblog.com
 - **留空即默认**：未覆盖的字段自动回落 `chakra_front_end/src/config/site.ts` 中的默认值；点击「恢复默认」可清空全部覆盖；
 - **站点地址一致性**：后台填写的「站点地址」用于 SEO / RSS / Sitemap，后端 CORS 白名单仍读取 `.env` 的 `NEXT_PUBLIC_SITE_URL`，两者建议保持一致。
 
-### 已有部署升级数据库（重要）
+### 已有部署升级数据库（全自动）
 
-`init.sql` 只在数据库卷初次创建时执行，**已有数据卷的部署需要手动执行一次升级脚本**，否则「站点设置」保存会因表不存在而失败：
+后端内置了 **启动期数据库自动迁移机制 (`DatabaseMigrator`)**：
+- 新版本镜像启动时，会自动检测并按序执行未应用的增量 SQL 脚本（如 `001_site_settings.sql`），并在数据库 `__schema_migrations` 表中登记；
+- **用户拉取新镜像重启后无需任何手动 SQL 操作**，容器启动日志中会输出迁移执行进度；
+- 若因特殊排错需要手动执行，亦可通过以下命令手工应用：
 
 ```bash
-# Linux / macOS
+# Linux / macOS (可选手动执行)
 docker compose exec -T postgres psql -U postgres -d blog < chakra_api_back_end/scripts/sql/upgrade/001_site_settings.sql
 
-# Windows PowerShell（不支持 < 重定向）
+# Windows PowerShell (可选手动执行)
 Get-Content chakra_api_back_end/scripts/sql/upgrade/001_site_settings.sql -Raw | docker compose exec -T postgres psql -U postgres -d blog
 ```
 

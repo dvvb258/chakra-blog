@@ -314,6 +314,14 @@ public class Program
 
         await using var app = builder.Build();
 
+        // 自动执行增量数据库迁移（如果存在未应用的 SQL 升级脚本）
+        using (var scope = app.Services.CreateScope())
+        {
+            var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+            var connectionString = app.Configuration.GetConnectionString("DefaultConnection") ?? string.Empty;
+            await ApiHost.Infrastructure.DatabaseMigrator.MigrateAsync(connectionString, logger);
+        }
+
         app.UseForwardedHeaders();
         app.UseCors();
         app.UseRateLimiter();
