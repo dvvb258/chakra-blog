@@ -36,7 +36,7 @@ jobs:
             build_args: "--build-arg NEXT_PUBLIC_SITE_URL=http://localhost:3000 --build-arg INTERNAL_API_BASE_URL=http://blogapi:8080/api"
           - name: chakra-blog-management
             context: ./chakra_management_front_end
-            build_args: "--build-arg VITE_BLOG_FRONT_URL=http://localhost:3000"
+            build_args: ""
 
     steps:
       - name: 检出代码

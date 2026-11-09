@@ -1,8 +1,0 @@
-blank_issues_enabled: false
-contact_links:
-  - name: 安全漏洞反馈
-    url: https://github.com/dvvb258/chakra-blog/security/advisories/new
-    about: 请勿公开提交安全相关 Issue，使用私有安全公告渠道
-  - name: 功能定制与二次开发
-    url: https://github.com/dvvb258/chakra-blog/blob/main/CONTRIBUTING.md
-    about: 本项目按现状开源，不接受规划外功能定制，建议直接 Fork 实现
