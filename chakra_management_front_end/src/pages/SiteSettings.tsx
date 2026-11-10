@@ -7,6 +7,7 @@ import {
   Col,
   Form,
   Input,
+  Radio,
   Row,
   Space,
   Typography,
@@ -22,6 +23,7 @@ const { Title, Paragraph, Text } = Typography
 type Overrides = Record<string, unknown>
 
 interface FormValues {
+  themePreset?: 'tech' | 'anime'
   name?: string
   siteName?: string
   title?: string
@@ -47,6 +49,7 @@ function toFormValues(overrides: Overrides): FormValues {
   const keywords = overrides.keywords
 
   return {
+    themePreset: (overrides.themePreset === 'anime' ? 'anime' : 'tech') as 'tech' | 'anime',
     name: asText(overrides.name),
     siteName: asText(overrides.siteName),
     title: asText(overrides.title),
@@ -155,6 +158,7 @@ export default function SiteSettings() {
 
     const merged: Overrides = JSON.parse(JSON.stringify(base))
 
+    setOrDelete(merged, ['themePreset'], values.themePreset)
     setOrDelete(merged, ['name'], values.name?.trim())
     setOrDelete(merged, ['siteName'], values.siteName?.trim())
     setOrDelete(merged, ['title'], values.title?.trim())
@@ -221,6 +225,20 @@ export default function SiteSettings() {
 
       <Card loading={loading} style={{ marginBottom: 16 }}>
         <Form form={form} layout="vertical" disabled={saving}>
+          <Row gutter={16}>
+            <Col xs={24}>
+              <Form.Item
+                label="站点主题风格预设"
+                name="themePreset"
+                extra="前台视觉与彩蛋模式：技术风（Tech）提供极简现代通用设计；火影风（Anime）提供写轮眼名片、苦无回顶与动漫特色彩蛋。"
+              >
+                <Radio.Group buttonStyle="solid">
+                  <Radio.Button value="tech">极简技术风 (Tech - 现代通用推荐)</Radio.Button>
+                  <Radio.Button value="anime">木叶火影风 (Anime - 特色彩蛋)</Radio.Button>
+                </Radio.Group>
+              </Form.Item>
+            </Col>
+          </Row>
           <Row gutter={16}>
             <Col xs={24} md={8}>
               <Form.Item label="站点名称" name="name" extra="用于作者署名、版权等展示位">

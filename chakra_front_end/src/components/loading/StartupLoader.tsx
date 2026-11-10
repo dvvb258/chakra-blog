@@ -34,6 +34,11 @@ export default function StartupLoader() {
   // 如果会话中已展示过，或者动画已播放完毕，直接卸载
   if (mounted && !shouldShow) return null
 
+  const isAnime = siteConfig.themePreset === 'anime'
+  const logoSrc = isAnime
+    ? (siteConfig.startupLoader.icon || siteConfig.avatar)
+    : (siteConfig.avatar || '/favicon.svg')
+
   return (
     <div
       className={`${styles.startup} ${styles.startupAutoFade}`}
@@ -42,17 +47,18 @@ export default function StartupLoader() {
       {/* 启动微标 */}
       <div className={styles.avatarContainer}>
         <Image
-          src={siteConfig.startupLoader.icon}
-          alt="Site Logo"
+          src={logoSrc}
+          alt={siteConfig.name || 'Site Logo'}
           fill
           priority
+          unoptimized={logoSrc.startsWith('http')}
           className={styles.avatarImg}
         />
       </div>
 
       {/* 连接提示文本 */}
       <div className={styles.connecting}>
-        {siteConfig.startupLoader.title}
+        {isAnime ? siteConfig.startupLoader.title : 'LOADING...'}
       </div>
 
       {/* 倾斜进度条 (原生 CSS 驱动) */}

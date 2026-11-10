@@ -120,6 +120,7 @@ services:
       args:
         INTERNAL_API_BASE_URL: ${INTERNAL_API_BASE_URL:-http://blogapi:8080/api}
         NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+        NEXT_PUBLIC_THEME_PRESET: ${THEME_PRESET:-tech}
     container_name: chakra-blog
     restart: unless-stopped
     depends_on:
@@ -132,6 +133,8 @@ services:
       INTERNAL_API_BASE_URL: ${INTERNAL_API_BASE_URL:-http://blogapi:8080/api}
       # 公开站点域名/地址
       NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+      # 初始主题风格预设 ('tech': 现代极简技术风 | 'anime': 木叶火影特色风)
+      NEXT_PUBLIC_THEME_PRESET: ${THEME_PRESET:-tech}
     ports:
       - "${BLOG_PORT:-3000}:3000"
     networks:
