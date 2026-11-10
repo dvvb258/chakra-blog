@@ -209,6 +209,25 @@ public class Article : Entity, IAggregateRoot
     }
 
     /// <summary>
+    /// 增加文章点赞数
+    /// </summary>
+    public void IncrementLikes()
+    {
+        Likes++;
+    }
+
+    /// <summary>
+    /// 减少文章点赞数（非负保底）
+    /// </summary>
+    public void DecrementLikes()
+    {
+        if (Likes > 0)
+        {
+            Likes--;
+        }
+    }
+
+    /// <summary>
     /// 自动从正文中提取纯文本作为摘要
     /// </summary>
     /// <param name="content">Markdown 正文</param>

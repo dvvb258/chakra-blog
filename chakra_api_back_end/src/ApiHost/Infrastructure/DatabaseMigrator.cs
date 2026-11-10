@@ -12,7 +12,7 @@ namespace ApiHost.Infrastructure;
 /// </summary>
 public static class DatabaseMigrator
 {
-    private record MigrationScript(string Version, string Description, Func<Task<string>> GetSqlAsync);
+    internal record MigrationScript(string Version, string Description, Func<Task<string>> GetSqlAsync);
 
     /// <summary>
     /// 执行未应用的数据库迁移脚本
@@ -131,7 +131,7 @@ public static class DatabaseMigrator
         logger.LogInformation("[DatabaseMigrator] 所有待执行迁移脚本应用完成！");
     }
 
-    private static List<MigrationScript> DiscoverScripts()
+    internal static List<MigrationScript> DiscoverScripts()
     {
         var scripts = new Dictionary<string, MigrationScript>(StringComparer.OrdinalIgnoreCase);
         var assembly = typeof(DatabaseMigrator).Assembly;

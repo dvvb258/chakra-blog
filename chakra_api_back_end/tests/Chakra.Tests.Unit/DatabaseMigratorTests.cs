@@ -43,22 +43,12 @@ public class DatabaseMigratorTests
     }
 
     [Fact]
-    public void EmbeddedMigrationResources_ShouldContainSiteSettingsMigration()
+    public void DiscoverScripts_ShouldReturnValidListWithoutThrowing()
     {
-        // Arrange
-        var assembly = typeof(DatabaseMigrator).Assembly;
-        var resourceNames = assembly.GetManifestResourceNames();
+        // Act
+        var scripts = DatabaseMigrator.DiscoverScripts();
 
-        // Assert
-        resourceNames.Should().Contain(name => name.EndsWith("001_site_settings.sql", StringComparison.OrdinalIgnoreCase));
-
-        var targetResource = resourceNames.First(name => name.EndsWith("001_site_settings.sql", StringComparison.OrdinalIgnoreCase));
-        using var stream = assembly.GetManifestResourceStream(targetResource);
-        stream.Should().NotBeNull();
-
-        using var reader = new StreamReader(stream!);
-        var sql = reader.ReadToEnd();
-        sql.Should().Contain("CREATE TABLE IF NOT EXISTS site_settings");
-        sql.Should().Contain("settings:manage");
+        // Assert (当前未发布阶段所有基线结构收敛在 init.sql，增量迁移脚本列表为空或包含合法脚本，不应抛出异常)
+        scripts.Should().NotBeNull();
     }
 }

@@ -1,8 +1,8 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Heart, Share2, Check } from 'lucide-react'
-import { recordArticleView, likeArticle } from '@/lib/api'
+import { recordArticleView, likeArticle, unlikeArticle } from '@/lib/api'
 
 interface ArticleInteractionsProps {
   articleId?: string
@@ -18,6 +18,10 @@ export default function ArticleInteractions({
   const [likes, setLikes] = useState<number>(initialLikes)
   const [hasLiked, setHasLiked] = useState<boolean>(false)
   const [copied, setCopied] = useState<boolean>(false)
+
+  // 记录持久化/已上报给服务端的基准点赞状态，用于 500ms 防抖合并对比
+  const serverLikedRef = useRef<boolean>(false)
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // 阅读量上报与点赞记忆恢复
   useEffect(() => {
@@ -35,27 +39,53 @@ export default function ArticleInteractions({
     }
 
     const likeKey = `liked_art_${articleId}`
-    if (localStorage.getItem(likeKey) === 'true') {
-      setHasLiked(true)
-    }
+    const stored = localStorage.getItem(likeKey) === 'true'
+    setHasLiked(stored)
+    serverLikedRef.current = stored
   }, [articleId])
 
+  // 组件卸载时清理定时器
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current)
+      }
+    }
+  }, [])
+
   const handleLike = () => {
+    if (!articleId) return
+
     const nextState = !hasLiked
     setHasLiked(nextState)
     setLikes((prev) => (nextState ? prev + 1 : Math.max(0, prev - 1)))
 
-    if (articleId) {
-      const likeKey = `liked_art_${articleId}`
-      if (nextState) {
-        localStorage.setItem(likeKey, 'true')
-        void likeArticle(articleId).catch((err: unknown) => {
-          console.error('点赞上报失败', err)
-        })
-      } else {
-        localStorage.removeItem(likeKey)
-      }
+    const likeKey = `liked_art_${articleId}`
+    if (nextState) {
+      localStorage.setItem(likeKey, 'true')
+    } else {
+      localStorage.removeItem(likeKey)
     }
+
+    // 短视频同款防抖合并：清除前一次未触发的请求
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current)
+    }
+
+    // 500ms 内用户若再次点击（如误触立刻取消，或连续狂点），在本地相抵消，不发送任何无意义请求
+    debounceTimerRef.current = setTimeout(() => {
+      // 只有最终状态与服务端已知状态不一致时，才发送一次网络请求
+      if (nextState !== serverLikedRef.current) {
+        const action = nextState ? likeArticle(articleId) : unlikeArticle(articleId)
+        action
+          .then(() => {
+            serverLikedRef.current = nextState
+          })
+          .catch((err: unknown) => {
+            console.error('点赞/取消点赞同步失败', err)
+          })
+      }
+    }, 500)
   }
 
   const handleCopy = () => {

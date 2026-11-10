@@ -45,8 +45,25 @@ public class StatsController : BaseApiController
     [EnableRateLimiting("stats-visit")]
     public async Task<IActionResult> IncrementArticleLikeAsync(long id, CancellationToken cancellationToken)
     {
-        await _mediator.Send(new IncrementArticleLikeCommand(id), cancellationToken);
+        var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString();
+        var visitorId = Request.Headers["X-Visitor-Id"].FirstOrDefault();
+        await _mediator.Send(new IncrementArticleLikeCommand(id, clientIp, visitorId), cancellationToken);
         return Success<object?>(null, "点赞成功");
+    }
+
+    /// <summary>
+    /// 文章取消点赞
+    /// </summary>
+    /// <param name="id">文章ID</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    [HttpDelete("articles/{id:long}/like")]
+    [EnableRateLimiting("stats-visit")]
+    public async Task<IActionResult> DecrementArticleLikeAsync(long id, CancellationToken cancellationToken)
+    {
+        var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString();
+        var visitorId = Request.Headers["X-Visitor-Id"].FirstOrDefault();
+        await _mediator.Send(new DecrementArticleLikeCommand(id, clientIp, visitorId), cancellationToken);
+        return Success<object?>(null, "已取消点赞");
     }
 
     /// <summary>

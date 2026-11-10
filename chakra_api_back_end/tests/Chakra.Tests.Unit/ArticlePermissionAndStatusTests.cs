@@ -1,11 +1,13 @@
 using Content.Application.Articles.Commands;
 using Content.Application.Articles.DTOs;
+using Content.Application.Stats.Commands;
 using Content.Domain.Entities;
 using Content.Domain.Enums;
 using Content.Infrastructure.Data;
 using FluentAssertions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using SharedKernel.Application.Exceptions;
 using Xunit;
 
@@ -319,5 +321,94 @@ public class ArticlePermissionAndStatusTests
         var article = await db.Articles.FindAsync(articleId);
         article.Should().NotBeNull();
         article!.IsPinned.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task IncrementArticleLike_ShouldIncreaseLikes_AndPreventDuplicateByCache()
+    {
+        // Arrange
+        await using var db = CreateInMemoryDbContext();
+        using var cache = new MemoryCache(new MemoryCacheOptions());
+        var category = new Category("技术分享");
+        db.Categories.Add(category);
+
+        var article = new Article(
+            title: "测试点赞文章",
+            content: "正文内容",
+            summary: "摘要",
+            tags: ["DotNet"],
+            categoryId: category.Id,
+            author: "测试作者",
+            readingTime: 2,
+            coverColor: "#0284c7");
+        db.Articles.Add(article);
+        await db.SaveChangesAsync();
+
+        var handler = new IncrementArticleLikeCommandHandler(db, cache);
+
+        // Act 1: 第一次点赞
+        await handler.Handle(new IncrementArticleLikeCommand(article.Id, ClientIp: "127.0.0.1", VisitorId: "vid_1"), CancellationToken.None);
+
+        // Assert 1: Likes 变为 1
+        var updated = await db.Articles.FindAsync(article.Id);
+        updated!.Likes.Should().Be(1);
+
+        // Act 2: 同一访客在防刷有效期内重复调用点赞
+        await handler.Handle(new IncrementArticleLikeCommand(article.Id, ClientIp: "127.0.0.1", VisitorId: "vid_1"), CancellationToken.None);
+
+        // Assert 2: 触发幂等防刷，Likes 依然为 1
+        updated = await db.Articles.FindAsync(article.Id);
+        updated!.Likes.Should().Be(1);
+
+        // Act 3: 另一个访客点赞
+        await handler.Handle(new IncrementArticleLikeCommand(article.Id, ClientIp: "127.0.0.2", VisitorId: "vid_2"), CancellationToken.None);
+
+        // Assert 3: Likes 变为 2
+        updated = await db.Articles.FindAsync(article.Id);
+        updated!.Likes.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task DecrementArticleLike_ShouldDecreaseLikes_AndPreventNegative()
+    {
+        // Arrange
+        await using var db = CreateInMemoryDbContext();
+        using var cache = new MemoryCache(new MemoryCacheOptions());
+        var category = new Category("技术分享");
+        db.Categories.Add(category);
+
+        var article = new Article(
+            title: "测试取消点赞文章",
+            content: "正文内容",
+            summary: "摘要",
+            tags: ["DotNet"],
+            categoryId: category.Id,
+            author: "测试作者",
+            readingTime: 2,
+            coverColor: "#0284c7");
+        db.Articles.Add(article);
+        await db.SaveChangesAsync();
+
+        var incHandler = new IncrementArticleLikeCommandHandler(db, cache);
+        var decHandler = new DecrementArticleLikeCommandHandler(db, cache);
+
+        // 访客点赞
+        await incHandler.Handle(new IncrementArticleLikeCommand(article.Id, ClientIp: "127.0.0.1", VisitorId: "vid_1"), CancellationToken.None);
+        var updated = await db.Articles.FindAsync(article.Id);
+        updated!.Likes.Should().Be(1);
+
+        // Act 1: 访客取消点赞
+        await decHandler.Handle(new DecrementArticleLikeCommand(article.Id, ClientIp: "127.0.0.1", VisitorId: "vid_1"), CancellationToken.None);
+
+        // Assert 1: Likes 回退为 0
+        updated = await db.Articles.FindAsync(article.Id);
+        updated!.Likes.Should().Be(0);
+
+        // Act 2: 再次取消点赞（或未点过赞恶意调取消）
+        await decHandler.Handle(new DecrementArticleLikeCommand(article.Id, ClientIp: "127.0.0.1", VisitorId: "vid_1"), CancellationToken.None);
+
+        // Assert 2: 保底非负，Likes 依然为 0
+        updated = await db.Articles.FindAsync(article.Id);
+        updated!.Likes.Should().Be(0);
     }
 }

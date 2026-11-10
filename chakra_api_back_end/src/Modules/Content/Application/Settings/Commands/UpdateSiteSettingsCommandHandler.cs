@@ -45,7 +45,7 @@ public sealed class UpdateSiteSettingsCommandHandler : ICommandHandler<UpdateSit
         catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.UndefinedTable)
         {
             throw new BusinessException(
-                "站点设置表不存在：请先执行升级脚本 scripts/sql/upgrade/001_site_settings.sql 后再保存。",
+                "站点设置表不存在：请检查数据库初始化脚本 scripts/sql/init.sql 是否已执行。",
                 500);
         }
     }

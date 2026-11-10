@@ -413,6 +413,23 @@ export async function getAllSeriesForSitemap(): Promise<{ id: string; updatedAt:
 }
 
 /**
+ * 获取当前访客的持久化匿名 ID（用于点赞防刷与去重）
+ */
+export function getVisitorId(): string {
+  if (typeof window === 'undefined') return ''
+  try {
+    let vid = localStorage.getItem('art_visitor_vid')
+    if (!vid) {
+      vid = 'v_' + Math.random().toString(36).substring(2, 10) + Date.now().toString(36)
+      localStorage.setItem('art_visitor_vid', vid)
+    }
+    return vid
+  } catch {
+    return ''
+  }
+}
+
+/**
  * 访问量上报 (/api/stats/visit)
  */
 export async function recordSystemVisit(): Promise<void> {
@@ -430,7 +447,24 @@ export async function recordArticleView(id: string | number): Promise<void> {
  * 文章点赞上报 (/api/stats/articles/:id/like)
  */
 export async function likeArticle(id: string | number): Promise<void> {
-  await apiFetch(buildUrl(`/stats/articles/${id}/like`), { method: 'POST', cache: 'no-store' })
+  const visitorId = getVisitorId()
+  await apiFetch(buildUrl(`/stats/articles/${id}/like`), {
+    method: 'POST',
+    cache: 'no-store',
+    headers: visitorId ? { 'X-Visitor-Id': visitorId } : undefined,
+  })
+}
+
+/**
+ * 文章取消点赞 (/api/stats/articles/:id/like)
+ */
+export async function unlikeArticle(id: string | number): Promise<void> {
+  const visitorId = getVisitorId()
+  await apiFetch(buildUrl(`/stats/articles/${id}/like`), {
+    method: 'DELETE',
+    cache: 'no-store',
+    headers: visitorId ? { 'X-Visitor-Id': visitorId } : undefined,
+  })
 }
 
 /**
