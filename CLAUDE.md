@@ -78,14 +78,17 @@ chakra-blog/
   - **动态流式渲染**：首页与专栏页显式声明 `export const dynamic = 'force-dynamic'`，配合 React `Suspense` 与 `TacticalLoader` 骨架占位。
   - **封面地址解析**：`resolveCoverImage` 优先使用接口返回的 `coverUrl`，未提供时平滑回退至 `siteConfig.defaultCover`。
 - **前台对接 API 清单**：
-  - `GET /api/articles`：分页文章列表（`keyword`, `categoryId`, `tag`, `pageIndex`, `pageSize`）
+  - `GET /api/articles`：分页文章列表（`keyword` 支持标题与摘要模糊检索，`sortBy` 支持 `latest` / `views` / `likes`，`categoryId`, `tag`, `pageIndex`, `pageSize`）
   - `GET /api/articles/{id}`：文章详情（含 Markdown 正文、阅读时长与元数据）
   - `GET /api/articles/{id}/neighbors`：上一篇 / 下一篇相邻文章
   - `GET /api/series` / `GET /api/series/{id}`：专栏列表与专栏详情
   - `GET /api/categories`：技术分类与收录篇数统计列表
   - `POST /api/stats/visit`：轻量单会话防抖系统总访问量上报
   - `POST /api/stats/articles/{id}/view`：单篇文章阅读量防抖上报（Session 级去重）
+  - `POST /api/stats/articles/{id}/like`：文章点赞（500ms 本地乐观防抖与滑窗防刷）
+  - `DELETE /api/stats/articles/{id}/like`：取消文章点赞
   - `GET /api/stats/visits`：全站总访问量查询（ISR 缓存）
+  - `GET /api/settings/site`：公开站点配置查询（前台 60 秒内存缓存）
 
 ---
 
@@ -127,14 +130,17 @@ chakra-blog/
     - `GET /api/system/public-config`：公开系统特性探测接口（探测 GitHub 登录、AI、存储类型开启状态）
     - `GET /api/admin/dashboard/summary`：运营仪表盘统计聚合查询
     - `GET|POST|PUT|DELETE /api/admin/articles`：文章全量 CRUD
+    - `PUT /api/admin/articles/{id}/pin`：置顶/取消置顶文章
     - `GET|POST|PUT|DELETE /api/admin/categories`：技术分类 CRUD（带收录文章防删保护）
     - `GET /api/tags`：热门技术标签查询
     - `GET|POST|PUT|DELETE /api/admin/series`：专栏系列 CRUD
     - `POST /api/admin/media/upload`：媒体文件上传（支持本地持久卷与 S3 协议存储）
+    - `GET|PUT /api/admin/settings/site`：站点设置维护（主题预设、SEO、社交信息等单行覆盖）
   - **Logging 系统日志模块**：
     - `GET /api/admin/logs/audit`：多维过滤查询业务操作审计日志（Channels 内存队列批量刷盘）
     - `GET /api/admin/logs/exceptions`：分页查询系统未处理异常日志
     - `GET /api/admin/logs/exceptions/{id}`：获取异常堆栈追踪详情
+    - 内置每日自动清理任务（`LogRetention:Days`，默认 60 天基于索引批量清理，杜绝表膨胀）
 
 ---
 

@@ -1,0 +1,10 @@
+# Windsurf Rules for Chakra Blog
+
+Refer to `AGENTS.md` and `DEVELOPMENT.md` for full project conventions.
+
+Key Rules:
+1. Snowflake ID: 64-bit int must always be treated as string in TypeScript. Never cast with Number() or parseInt().
+2. Zero Warnings: Backend TreatWarningsAsErrors is on. Keep all builds zero-warning and zero-error.
+3. Vertical Slice CQRS: Command uses EF Core, Query uses Dapper. Keep Identity, Content, and Logging isolated.
+4. Themes: Keep generic blog components neutral and standard. Guard anime elements with `siteConfig.themePreset === 'anime'`.
+5. For task-specific step-by-step SOPs, read the skill files under `docs/skills/`.

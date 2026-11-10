@@ -151,6 +151,7 @@ chakra_api_back_end/
 | `JwtSettings:Secret` | JWT 签名密钥（至少 32 字符） |
 | `JwtSettings:Issuer` | JWT 颁发者（默认 chakra_api） |
 | `JwtSettings:Audience` | JWT 受众（默认 chakra_client） |
+| `LogRetention:Days` | 历史操作审计与异常日志保留天数（默认 60 天，超过每日后台自动清理） |
 | `Storage:S3:Endpoint` (兼容 `S3Storage:ServiceUrl`) | S3 兼容服务端点 |
 | `Storage:S3:AccessKey` (兼容 `S3Storage:AccessKey`) | S3 AccessKey |
 | `Storage:S3:SecretKey` (兼容 `S3Storage:SecretKey`) | S3 SecretKey |
