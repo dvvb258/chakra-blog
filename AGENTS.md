@@ -72,10 +72,8 @@ npm --prefix chakra_management_front_end run build
 
 ---
 
-## 5. 多 Agent 配置文件映射指引
+## 5. 多 Agent 通用适配指引
 
-- **Claude Code**：自动加载根目录与各子工程的 `CLAUDE.md`。
-- **Cursor**：自动读取根目录 `.cursorrules`（指向本文件与 `DEVELOPMENT.md`）。
-- **GitHub Copilot**：自动读取 `.github/copilot-instructions.md`。
-- **Windsurf**：自动读取 `.windsurfrules`。
-- **Antigravity / Aider / Roo Code**：原生读取本文件 `AGENTS.md`。
+- **通用事实来源**：本文件（`AGENTS.md`）作为跨 Agent 开源统一标准，供所有现代 AI 编码助手（Cursor, Antigravity, Windsurf, Aider, Roo Code 等）直接读取，无需在项目根目录维护各类碎片化的厂商私有规则文件；
+- **Claude Code**：原生读取项目各层级的 `CLAUDE.md`；
+- **任务按需调度**：在向任何 AI 助手派发具体场景任务时，直接在提示词中引用 `docs/skills/` 下的对应技能手册（如：*“请参考 docs/skills/01-add-backend-cqrs-slice.md 完成新功能”*）。
