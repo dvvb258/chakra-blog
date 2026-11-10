@@ -10,6 +10,26 @@ interface MarkdownRendererProps {
   content: string
 }
 
+/**
+ * 递归提取 React 节点树中的纯文本字符串，避免遇到富文本/行内代码时求值为 "[object Object]"
+ */
+function getNodeText(node: React.ReactNode): string {
+  if (node == null || typeof node === 'boolean') {
+    return ''
+  }
+  if (typeof node === 'string' || typeof node === 'number') {
+    return String(node)
+  }
+  if (Array.isArray(node)) {
+    return node.map(getNodeText).join('')
+  }
+  if (React.isValidElement(node)) {
+    const props = node.props as { children?: React.ReactNode }
+    return getNodeText(props.children)
+  }
+  return ''
+}
+
 export default function MarkdownRenderer({ content }: MarkdownRendererProps) {
   return (
     <div className="prose-article">
@@ -17,7 +37,7 @@ export default function MarkdownRenderer({ content }: MarkdownRendererProps) {
         remarkPlugins={[remarkGfm]}
         components={{
           h2: ({ children }) => {
-            const text = String(children)
+            const text = getNodeText(children)
             const id = slugify(text)
             return (
               <h2 id={id} className="scroll-mt-24 group">
@@ -28,7 +48,7 @@ export default function MarkdownRenderer({ content }: MarkdownRendererProps) {
             )
           },
           h3: ({ children }) => {
-            const text = String(children)
+            const text = getNodeText(children)
             const id = slugify(text)
             return (
               <h3 id={id} className="scroll-mt-24">
