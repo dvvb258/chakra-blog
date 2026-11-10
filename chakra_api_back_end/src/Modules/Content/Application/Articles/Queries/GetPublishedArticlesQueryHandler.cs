@@ -31,7 +31,7 @@ public sealed class GetPublishedArticlesQueryHandler : IQueryHandler<GetPublishe
         var conditions = new List<string> { "a.is_del = false", "a.status = @PublishedStatus" };
 
         if (!string.IsNullOrWhiteSpace(request.Keyword))
-            conditions.Add("a.title ILIKE @Keyword");
+            conditions.Add("(a.title ILIKE @Keyword OR a.summary ILIKE @Keyword)");
 
         if (request.CategoryId.HasValue && request.CategoryId.Value > 0)
             conditions.Add("a.category_id = @CategoryId");
