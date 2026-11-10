@@ -40,6 +40,10 @@ public static class DependencyInjection
         services.AddSingleton<IAuditLogQueue, AuditLogQueue>();
         services.AddHostedService<AuditLogProcessor>();
 
+        // 注册过期日志自动清理服务与每日后台调度
+        services.AddScoped<ILogCleanupService, LogCleanupService>();
+        services.AddHostedService<LogCleanupBackgroundService>();
+
         return services;
     }
 }

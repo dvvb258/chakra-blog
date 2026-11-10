@@ -42,13 +42,11 @@ chakra-blog/
 
 ### 步骤 1：启动本地 PostgreSQL 数据库
 ```bash
-docker run -d --name local-postgres \
-  -e POSTGRES_DB=blog \
-  -e POSTGRES_USER=postgres \
-  -e POSTGRES_PASSWORD=postgres \
-  -p 5432:5432 \
-  -v $(pwd)/chakra_api_back_end/scripts/sql/init.sql:/docker-entrypoint-initdb.d/01_init.sql:ro \
-  postgres:16-alpine
+# 推荐方式：直接使用项目根目录的 docker compose 启动 Postgres（跨平台自动挂载 init.sql 初始化表）
+docker compose up -d postgres
+
+# 或使用原生 docker run 命令（Linux/macOS 使用 $(pwd)，Windows PowerShell 请将 $(pwd) 替换为 ${PWD}）：
+# docker run -d --name local-postgres -e POSTGRES_DB=blog -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 -v ${PWD}/chakra_api_back_end/scripts/sql/init.sql:/docker-entrypoint-initdb.d/01_init.sql:ro postgres:16-alpine
 ```
 
 ### 步骤 2：启动后端 WebAPI (.NET 10)

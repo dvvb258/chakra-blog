@@ -69,6 +69,8 @@ services:
       Hangfire__Dashboard__Enabled: "${HANGFIRE_DASHBOARD_ENABLED:-true}"
       Hangfire__Dashboard__Username: "${HANGFIRE_USERNAME:-admin}"
       Hangfire__Dashboard__Password: "${HANGFIRE_PASSWORD:-AdminPassword123!}"
+      # 日志保留周期（天，默认 60 天；超过时每日自动清理）
+      LogRetention__Days: "${LOG_RETENTION_DAYS:-60}"
       # JWT 安全配置（生产部署请务必在 .env 中修改为随机强密钥）
       JwtSettings__Secret: ${JWT_SECRET:-CHANGE_ME_SecureJwtSecretKeyMustBeLongerThan32Bytes!}
       # 跨域白名单（默认内置本地端口并自动追加 NEXT_PUBLIC_SITE_URL；支持逗号分隔额外公网域名）
