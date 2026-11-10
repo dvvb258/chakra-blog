@@ -31,6 +31,9 @@ export interface SkillMatrixItem {
  * 站点配置默认值：后台「站点设置」只保存覆盖项，未覆盖的字段均回落此处
  */
 export const defaultSiteConfig = {
+  // 站点主题预设 ('tech': 现代极简技术风 | 'anime': 火影特色风)
+  themePreset: (process.env.NEXT_PUBLIC_THEME_PRESET as 'tech' | 'anime') || 'tech',
+
   // 站点基础信息与 SEO
   name: 'Chakra',
   siteName: 'chakra.blog',

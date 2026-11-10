@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from 'react'
 import { Check, Copy } from 'lucide-react'
 import Prism from 'prismjs'
+import { siteConfig } from '@/config/site'
 
 // 禁用 Prism 自动在客户端扫描并修改 DOM 属性（避免导致 React Hydration 不匹配）
 Prism.manual = true
@@ -174,8 +175,10 @@ export default function CodeBlock({ language = 'text', code }: CodeBlockProps) {
         >
           {copied ? (
             <>
-              {/* 写轮眼旋转微动效彩蛋 */}
-              <SharinganEyeIcon className="w-3.5 h-3.5 animate-[spin_0.8s_ease-out] drop-shadow-[0_0_6px_rgba(239,68,68,0.8)]" />
+              {/* 仅在 anime 预设下展示写轮眼微动效彩蛋 */}
+              {siteConfig.themePreset === 'anime' && (
+                <SharinganEyeIcon className="w-3.5 h-3.5 animate-[spin_0.8s_ease-out] drop-shadow-[0_0_6px_rgba(239,68,68,0.8)]" />
+              )}
               <Check className="w-3.5 h-3.5 text-emerald-400" />
               <span className="text-emerald-400 font-bold">已复制!</span>
             </>

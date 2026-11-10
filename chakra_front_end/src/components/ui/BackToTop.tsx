@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import Image from 'next/image'
+import { ArrowUp } from 'lucide-react'
 import { siteConfig } from '@/config/site'
 
 /**
@@ -54,6 +55,23 @@ export default function BackToTop() {
 
   // 必须在非可见且不在动画中时才卸载
   if (!visible && !isTeleporting && !isLanding) return null
+
+  // 极简技术风预设下使用通用轻量回到顶部按钮
+  if (siteConfig.themePreset !== 'anime') {
+    return (
+      <div className="fixed bottom-6 right-6 z-40 pointer-events-auto select-none">
+        <button
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          type="button"
+          aria-label="回到顶部"
+          title="回到顶部"
+          className="group relative w-11 h-11 rounded-xl bg-theme-surface/90 hover:bg-theme-surface text-slate-600 dark:text-slate-300 hover:text-theme-primary border border-theme-border/70 hover:border-theme-primary/50 shadow-paper hover:shadow-paper-hover transition-all duration-300 active:scale-95 flex items-center justify-center backdrop-blur-md cursor-pointer animate-in fade-in zoom-in-90"
+        >
+          <ArrowUp className="w-5 h-5 transition-transform duration-300 group-hover:-translate-y-0.5" />
+        </button>
+      </div>
+    )
+  }
 
   return (
     <>

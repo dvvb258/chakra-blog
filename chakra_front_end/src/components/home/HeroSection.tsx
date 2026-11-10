@@ -6,6 +6,7 @@ import { ArrowUpRight, Github, BookOpen, Compass, ChevronDown } from 'lucide-rea
 import SnakeGameWidget from './SnakeGameWidget'
 import InteractiveTerminalWidget from './InteractiveTerminalWidget'
 import NarutoCharacter from './NarutoCharacter'
+import TechHeroCard from './TechHeroCard'
 import { siteConfig } from '@/config/site'
 
 export default function HeroSection() {
@@ -73,9 +74,13 @@ export default function HeroSection() {
             </div>
           </div>
 
-          {/* 右侧：交互式形象展示 */}
+          {/* 右侧：形象展示区 (根据 themePreset 自动切换极简技术风或动漫特色风) */}
           <div className="lg:col-span-6 z-20">
-            <NarutoCharacter />
+            {siteConfig.themePreset === 'anime' ? (
+              <NarutoCharacter />
+            ) : (
+              <TechHeroCard />
+            )}
           </div>
         </div>
       </div>
