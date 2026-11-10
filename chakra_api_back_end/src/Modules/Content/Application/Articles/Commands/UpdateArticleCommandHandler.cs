@@ -87,7 +87,8 @@ public sealed class UpdateArticleCommandHandler : ICommandHandler<UpdateArticleC
             readingTime: req.ReadingTime,
             coverColor: req.CoverColor ?? string.Empty,
             coverUrl: req.CoverUrl,
-            seriesId: seriesId);
+            seriesId: seriesId,
+            isPinned: command.IsAdmin ? req.IsPinned : null);
 
         // 文章状态流转规范：
         // 1. 若显式指定为【提交审核】(PendingReview) -> 进入待审

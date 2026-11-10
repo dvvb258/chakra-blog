@@ -62,6 +62,7 @@ CREATE TABLE IF NOT EXISTS articles (
     views BIGINT NOT NULL DEFAULT 0,
     likes BIGINT NOT NULL DEFAULT 0,
     series_id BIGINT NULL REFERENCES series(id) ON DELETE SET NULL,
+    is_pinned BOOLEAN NOT NULL DEFAULT FALSE,
     status INT NOT NULL DEFAULT 1,
     created_by_user_id BIGINT NOT NULL DEFAULT 0,
     source_link VARCHAR(500) NULL,
@@ -77,6 +78,8 @@ CREATE INDEX IF NOT EXISTS ix_articles_created_at ON articles (created_at);
 CREATE INDEX IF NOT EXISTS ix_articles_is_del ON articles (is_del);
 CREATE INDEX IF NOT EXISTS ix_articles_series_id ON articles (series_id);
 CREATE INDEX IF NOT EXISTS ix_articles_status ON articles (status);
+CREATE INDEX IF NOT EXISTS ix_articles_is_pinned ON articles (is_pinned);
+CREATE INDEX IF NOT EXISTS ix_articles_pinned_created_at ON articles (is_pinned DESC, created_at DESC);
 CREATE INDEX IF NOT EXISTS ix_articles_created_by_user_id ON articles (created_by_user_id);
 CREATE UNIQUE INDEX IF NOT EXISTS ix_articles_source_link ON articles (source_link) WHERE source_link IS NOT NULL;
 

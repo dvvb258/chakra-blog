@@ -194,4 +194,21 @@ public class AdminArticlesController : BaseApiController
         await _mediator.Send(command, cancellationToken);
         return Success("文章已被驳回并退回草稿");
     }
+
+    /// <summary>
+    /// 切换文章置顶状态
+    /// </summary>
+    /// <param name="id">文章 ID</param>
+    /// <param name="isPinned">是否置顶</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>操作状态</returns>
+    [RequirePermission(Permissions.ArticleEdit)]
+    [HttpPut("{id:long}/pin")]
+    [ProducesResponseType(typeof(ApiResult<string>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> TogglePinAsync(long id, [FromQuery] bool isPinned, CancellationToken cancellationToken)
+    {
+        var command = new ToggleArticlePinCommand(id, isPinned);
+        await _mediator.Send(command, cancellationToken);
+        return Success(isPinned ? "文章已置顶" : "文章已取消置顶");
+    }
 }

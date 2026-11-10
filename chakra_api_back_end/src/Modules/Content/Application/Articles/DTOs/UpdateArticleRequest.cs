@@ -56,6 +56,11 @@ public sealed record UpdateArticleRequest
     public long? SeriesId { get; init; }
 
     /// <summary>
+    /// 是否置顶展示（可选）
+    /// </summary>
+    public bool? IsPinned { get; init; }
+
+    /// <summary>
     /// 文章状态变更（可选）
     /// </summary>
     public int? Status { get; init; }

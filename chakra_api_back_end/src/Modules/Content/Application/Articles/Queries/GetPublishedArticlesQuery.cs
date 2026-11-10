@@ -33,6 +33,11 @@ public sealed record GetPublishedArticlesQuery : IQuery<PagedResult<ArticleListI
     public string? Tag { get; init; }
 
     /// <summary>
+    /// 排序方式（latest: 最新发布, views: 最多阅读, likes: 最多点赞，默认 latest）
+    /// </summary>
+    public string? SortBy { get; init; }
+
+    /// <summary>
     /// 页码
     /// </summary>
     public int PageIndex

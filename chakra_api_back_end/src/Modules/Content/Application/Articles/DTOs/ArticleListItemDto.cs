@@ -44,6 +44,9 @@ public record ArticleListItemDto
     /// <summary>所属系列ID</summary>
     public long? SeriesId { get; init; }
 
+    /// <summary>是否置顶展示</summary>
+    public bool IsPinned { get; init; }
+
     /// <summary>创建人用户ID</summary>
     public long CreatedByUserId { get; init; }
 

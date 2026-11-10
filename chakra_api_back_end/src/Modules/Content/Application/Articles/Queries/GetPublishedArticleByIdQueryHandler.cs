@@ -31,7 +31,7 @@ public sealed class GetPublishedArticleByIdQueryHandler : IQueryHandler<GetPubli
             SELECT a.id, a.title, a.content, a.summary, a.tags,
                    a.category_id,
                    c.name AS category_name,
-                   a.author, a.reading_time, a.cover_color, a.cover_url, a.views, a.likes, a.series_id, a.created_at, a.updated_at, a.version
+                   a.author, a.reading_time, a.cover_color, a.cover_url, a.views, a.likes, a.series_id, a.is_pinned, a.created_at, a.updated_at, a.version
             FROM articles a
             LEFT JOIN categories c ON a.category_id = c.id
             WHERE a.id = @Id AND a.is_del = false AND a.status = @PublishedStatus

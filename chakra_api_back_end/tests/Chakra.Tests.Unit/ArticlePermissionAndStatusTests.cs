@@ -245,4 +245,79 @@ public class ArticlePermissionAndStatusTests
         // 普通用户无权直接发布，必须降为草稿或提审
         created!.Status.Should().Be(ArticleStatus.Draft);
     }
+
+    [Fact]
+    public async Task Admin_ShouldBeAbleToCreatePinnedArticle_AndTogglePin()
+    {
+        // Arrange
+        await using var db = CreateInMemoryDbContext();
+        var category = new Category("技术分享");
+        db.Categories.Add(category);
+        await db.SaveChangesAsync();
+
+        var createHandler = new CreateArticleCommandHandler(db);
+        var createRequest = new CreateArticleRequest
+        {
+            Title = "管理员置顶文章",
+            Content = "正文内容",
+            CategoryId = category.Id,
+            Status = (int)ArticleStatus.Published,
+            IsPinned = true,
+        };
+
+        var createCommand = new CreateArticleCommand(
+            createRequest,
+            CurrentUserId: 1,
+            CurrentUserNickname: "管理员",
+            IsAdmin: true);
+
+        // Act - Create with IsPinned
+        var articleId = await createHandler.Handle(createCommand, CancellationToken.None);
+
+        // Assert created
+        var article = await db.Articles.FindAsync(articleId);
+        article.Should().NotBeNull();
+        article!.IsPinned.Should().BeTrue();
+
+        // Act - Toggle pin to false
+        var toggleHandler = new ToggleArticlePinCommandHandler(db);
+        await toggleHandler.Handle(new ToggleArticlePinCommand(articleId, false), CancellationToken.None);
+
+        // Assert toggled
+        var updated = await db.Articles.FindAsync(articleId);
+        updated!.IsPinned.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task NonAdmin_CannotSetPinned_OnArticleCreation()
+    {
+        // Arrange
+        await using var db = CreateInMemoryDbContext();
+        var category = new Category("技术分享");
+        db.Categories.Add(category);
+        await db.SaveChangesAsync();
+
+        var createHandler = new CreateArticleCommandHandler(db);
+        var createRequest = new CreateArticleRequest
+        {
+            Title = "普通用户尝试置顶文章",
+            Content = "正文内容",
+            CategoryId = category.Id,
+            IsPinned = true, // 试图置顶
+        };
+
+        var createCommand = new CreateArticleCommand(
+            createRequest,
+            CurrentUserId: 100,
+            CurrentUserNickname: "普通作者",
+            IsAdmin: false);
+
+        // Act
+        var articleId = await createHandler.Handle(createCommand, CancellationToken.None);
+
+        // Assert - 非管理员不可置顶
+        var article = await db.Articles.FindAsync(articleId);
+        article.Should().NotBeNull();
+        article!.IsPinned.Should().BeFalse();
+    }
 }

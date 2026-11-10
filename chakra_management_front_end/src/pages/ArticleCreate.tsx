@@ -13,6 +13,7 @@ import {
   Tag,
   Typography,
   Modal,
+  Switch,
 } from 'antd'
 import {
   ArrowLeftOutlined,
@@ -26,6 +27,7 @@ import {
   DeleteOutlined,
   LoadingOutlined,
   PlusOutlined,
+  PushpinOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import MDEditor from '@uiw/react-md-editor'
@@ -217,6 +219,7 @@ export default function ArticleCreate() {
     readingTime?: number
     coverColor?: string
     summary?: string
+    isPinned?: boolean
   }) => {
     if (!content.trim()) {
       message.warning('文章正文不能为空，请输入 Markdown 内容')
@@ -237,6 +240,7 @@ export default function ArticleCreate() {
         coverColor: values.coverColor || '#0284c7',
         coverUrl: coverUrl || undefined,
         status: targetStatus,
+        isPinned: isAdmin ? !!values.isPinned : false,
       })
       isSubmittedRef.current = true
       const successTip = targetStatus === ArticleStatus.Published
@@ -532,6 +536,23 @@ export default function ArticleCreate() {
               >
                 <Select options={COLOR_OPTIONS} style={{ width: '100%' }} />
               </Form.Item>
+
+              {/* 置顶展示（仅限管理员配置） */}
+              {isAdmin && (
+                <Form.Item
+                  name="isPinned"
+                  label={
+                    <Space>
+                      <PushpinOutlined style={{ color: '#ef4444' }} />
+                      <span>首页置顶展示</span>
+                    </Space>
+                  }
+                  valuePropName="checked"
+                  extra={<Text type="secondary" style={{ fontSize: 12 }}>开启后文章将在博客前台首页与文章列表置顶置首展示</Text>}
+                >
+                  <Switch checkedChildren="已置顶" unCheckedChildren="普通展示" />
+                </Form.Item>
+              )}
             </Card>
 
             {/* 摘要设置卡片 */}

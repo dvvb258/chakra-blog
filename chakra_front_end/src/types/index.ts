@@ -49,6 +49,7 @@ export interface ArticleQueryParams {
   tag?: string
   page?: number
   pageSize?: number
+  sortBy?: 'latest' | 'views' | 'likes'
 }
 
 export interface SeriesQueryParams {

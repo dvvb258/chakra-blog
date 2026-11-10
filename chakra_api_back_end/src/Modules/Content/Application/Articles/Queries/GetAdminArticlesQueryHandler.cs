@@ -54,6 +54,11 @@ public sealed class GetAdminArticlesQueryHandler : IQueryHandler<GetAdminArticle
             conditions.Add("a.status = @Status");
         }
 
+        if (request.IsPinned.HasValue)
+        {
+            conditions.Add("a.is_pinned = @IsPinned");
+        }
+
         if (request.CreatedByUserId.HasValue && request.CreatedByUserId.Value > 0)
         {
             conditions.Add("a.created_by_user_id = @CreatedByUserId");
@@ -71,11 +76,11 @@ public sealed class GetAdminArticlesQueryHandler : IQueryHandler<GetAdminArticle
             SELECT a.id, a.title, a.summary, a.tags,
                    a.category_id,
                    c.name AS category_name,
-                   a.author, a.reading_time, a.cover_color, a.cover_url, a.views, a.likes, a.series_id, a.status, a.created_by_user_id, a.created_at, a.updated_at, a.version
+                   a.author, a.reading_time, a.cover_color, a.cover_url, a.views, a.likes, a.series_id, a.is_pinned, a.status, a.created_by_user_id, a.created_at, a.updated_at, a.version
             FROM articles a
             LEFT JOIN categories c ON a.category_id = c.id
             {whereClause}
-            ORDER BY a.created_at DESC, a.id DESC
+            ORDER BY a.is_pinned DESC, a.created_at DESC, a.id DESC
             LIMIT @PageSize OFFSET @Offset
             """;
 
@@ -86,6 +91,7 @@ public sealed class GetAdminArticlesQueryHandler : IQueryHandler<GetAdminArticle
             Tag = request.Tag,
             SeriesId = request.SeriesId,
             Status = request.Status,
+            IsPinned = request.IsPinned,
             CreatedByUserId = request.CreatedByUserId,
             Offset = (request.PageIndex - 1) * request.PageSize,
             PageSize = request.PageSize,

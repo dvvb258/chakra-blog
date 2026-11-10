@@ -69,6 +69,11 @@ public class Article : Entity, IAggregateRoot
     public long? SeriesId { get; private set; }
 
     /// <summary>
+    /// 是否置顶展示（首页精选与置顶优先展示）
+    /// </summary>
+    public bool IsPinned { get; private set; }
+
+    /// <summary>
     /// 原文来源链接（AI生成文章使用，用于去重判断）
     /// </summary>
     public string? SourceLink { get; private set; }
@@ -103,6 +108,7 @@ public class Article : Entity, IAggregateRoot
     /// <param name="sourceLink">原文引用链接</param>
     /// <param name="createdByUserId">创建人用户ID</param>
     /// <param name="status">初始文章状态</param>
+    /// <param name="isPinned">是否置顶展示</param>
     public Article(
         string title,
         string content,
@@ -115,7 +121,8 @@ public class Article : Entity, IAggregateRoot
         string coverUrl = "",
         string? sourceLink = null,
         long createdByUserId = 0,
-        ArticleStatus status = ArticleStatus.Draft)
+        ArticleStatus status = ArticleStatus.Draft,
+        bool isPinned = false)
         : base(SnowflakeIdGenerator.NextId())
     {
         Title = title;
@@ -130,6 +137,7 @@ public class Article : Entity, IAggregateRoot
         SourceLink = sourceLink;
         CreatedByUserId = createdByUserId;
         Status = status;
+        IsPinned = isPinned;
     }
 
     /// <summary>
@@ -145,6 +153,7 @@ public class Article : Entity, IAggregateRoot
     /// <param name="coverColor">封面色值</param>
     /// <param name="coverUrl">封面图片链接</param>
     /// <param name="seriesId">所属系列ID</param>
+    /// <param name="isPinned">是否置顶（可选）</param>
     public void Update(
         string title,
         string content,
@@ -155,7 +164,8 @@ public class Article : Entity, IAggregateRoot
         int readingTime,
         string coverColor,
         string? coverUrl,
-        long? seriesId)
+        long? seriesId,
+        bool? isPinned = null)
     {
         if (string.IsNullOrWhiteSpace(title))
         {
@@ -177,7 +187,25 @@ public class Article : Entity, IAggregateRoot
         CoverColor = coverColor ?? string.Empty;
         CoverUrl = coverUrl?.Trim() ?? string.Empty;
         SeriesId = seriesId.HasValue && seriesId.Value > 0 ? seriesId.Value : null;
+        if (isPinned.HasValue)
+        {
+            IsPinned = isPinned.Value;
+        }
+
         SetUpdatedAt();
+    }
+
+    /// <summary>
+    /// 快速切换或设置文章置顶状态
+    /// </summary>
+    /// <param name="isPinned">是否置顶</param>
+    public void SetPinned(bool isPinned)
+    {
+        if (IsPinned != isPinned)
+        {
+            IsPinned = isPinned;
+            SetUpdatedAt();
+        }
     }
 
     /// <summary>

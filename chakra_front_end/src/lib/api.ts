@@ -229,7 +229,7 @@ export function normalizeSeries(item: RawSeriesData): Series {
  * 获取文章列表 (/api/articles)
  */
 export async function getArticles(params: ArticleQueryParams = {}): Promise<PagedList<Article>> {
-  const { keyword = '', category = '', tag = '', page = 1, pageSize = 6 } = params
+  const { keyword = '', category = '', tag = '', page = 1, pageSize = 6, sortBy } = params
 
   const url = buildUrl('/articles', {
     keyword: keyword || undefined,
@@ -237,6 +237,7 @@ export async function getArticles(params: ArticleQueryParams = {}): Promise<Page
     tag: tag || undefined,
     pageIndex: page,
     pageSize: pageSize,
+    sortBy: sortBy || undefined,
   })
 
   const raw = await apiFetch<{ data?: { items?: RawArticleData[]; total?: number }; items?: RawArticleData[]; total?: number }>(url, {

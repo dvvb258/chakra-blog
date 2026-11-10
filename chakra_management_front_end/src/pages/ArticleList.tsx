@@ -26,6 +26,7 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   SendOutlined,
+  PushpinOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table'
@@ -62,6 +63,7 @@ export default function ArticleList() {
   const [categoryId, setCategoryId] = useState<string | number | undefined>(undefined)
   const [seriesId, setSeriesId] = useState<string | number | undefined>(undefined)
   const [status, setStatus] = useState<number | undefined>(undefined)
+  const [isPinnedFilter, setIsPinnedFilter] = useState<boolean | undefined>(undefined)
 
   // 动态分类映射表（ID => 显示名称）
   const categoryMap = useMemo(() => {
@@ -96,6 +98,7 @@ export default function ArticleList() {
         categoryId: categoryId || undefined,
         seriesId: seriesId || undefined,
         status,
+        isPinned: isPinnedFilter,
       })
       setData(result?.items || [])
       setTotal(result?.total || 0)
@@ -104,7 +107,7 @@ export default function ArticleList() {
     } finally {
       setLoading(false)
     }
-  }, [pageIndex, pageSize, appliedKeyword, categoryId, seriesId, status, message])
+  }, [pageIndex, pageSize, appliedKeyword, categoryId, seriesId, status, isPinnedFilter, message])
 
   useEffect(() => {
     fetchData()
@@ -154,6 +157,18 @@ export default function ArticleList() {
     }
   }
 
+  // 管理员切换文章置顶状态
+  const handleTogglePin = async (record: ArticleListItemDto) => {
+    try {
+      const nextPinned = !record.isPinned
+      await articlesApi.toggleArticlePin(record.id, nextPinned)
+      message.success(nextPinned ? '文章已成功置顶展示' : '文章已取消置顶')
+      fetchData()
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : '切换置顶状态失败')
+    }
+  }
+
   // 分页改变
   const handleTableChange = (pagination: TablePaginationConfig) => {
     setPageIndex(pagination.current ?? 1)
@@ -173,6 +188,7 @@ export default function ArticleList() {
     setCategoryId(undefined)
     setSeriesId(undefined)
     setStatus(undefined)
+    setIsPinnedFilter(undefined)
     setPageIndex(1)
   }
 
@@ -209,7 +225,12 @@ export default function ArticleList() {
             </div>
           )}
           <div style={{ flex: 1, minWidth: 0 }}>
-            <Space align="center" size={6}>
+            <Space align="center" size={6} wrap>
+              {record.isPinned && (
+                <Tag color="red" style={{ margin: 0, fontWeight: 600, padding: '0 5px', fontSize: 11 }}>
+                  置顶
+                </Tag>
+              )}
               <Text strong className={styles.articleTitleText}>
                 {text}
               </Text>
@@ -377,6 +398,23 @@ export default function ArticleList() {
               </PermissionGuard>
             )}
 
+            {/* 超级管理员快速置顶切换 */}
+            {isAdmin && (
+              <PermissionGuard code={PERMISSIONS.ARTICLE_EDIT}>
+                <Tooltip title={record.isPinned ? '取消首页置顶' : '设为首页置顶'}>
+                  <Button
+                    type="link"
+                    size="small"
+                    icon={<PushpinOutlined />}
+                    style={{ color: record.isPinned ? '#ef4444' : '#0284c7' }}
+                    onClick={() => handleTogglePin(record)}
+                  >
+                    {record.isPinned ? '取消置顶' : '置顶'}
+                  </Button>
+                </Tooltip>
+              </PermissionGuard>
+            )}
+
             {/* 草稿或退回状态：创作者本人（无论是普通作者还是管理员）均可点击提审 */}
             {(record.status === ArticleStatus.Draft || record.status === ArticleStatus.Rejected) && isOwner && (
               <PermissionGuard code={PERMISSIONS.ARTICLE_SUBMIT}>
@@ -527,6 +565,21 @@ export default function ArticleList() {
             style={{ width: 120 }}
             allowClear
             options={ARTICLE_STATUS_OPTIONS}
+          />
+
+          <Select
+            placeholder="置顶筛选"
+            value={isPinnedFilter}
+            onChange={(val) => {
+              setIsPinnedFilter(val)
+              setPageIndex(1)
+            }}
+            style={{ width: 120 }}
+            allowClear
+            options={[
+              { label: '仅看置顶', value: true },
+              { label: '普通文章', value: false },
+            ]}
           />
 
           <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>

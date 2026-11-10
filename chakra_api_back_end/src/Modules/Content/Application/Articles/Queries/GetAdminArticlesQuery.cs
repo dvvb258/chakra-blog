@@ -38,6 +38,11 @@ public sealed record GetAdminArticlesQuery : IQuery<PagedResult<ArticleListItemD
     public int? Status { get; init; }
 
     /// <summary>
+    /// 是否置顶筛选
+    /// </summary>
+    public bool? IsPinned { get; init; }
+
+    /// <summary>
     /// 创建人用户ID（Editor 身份将由系统强制锁定为当前登录人）
     /// </summary>
     public long? CreatedByUserId { get; set; }

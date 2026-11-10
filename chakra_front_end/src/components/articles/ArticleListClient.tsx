@@ -14,11 +14,12 @@ interface ArticleListClientProps {
   pageSize: number
   currentCategory: string
   currentKeyword: string
+  currentSortBy?: 'latest' | 'views' | 'likes'
   categories?: Category[]
   categoryCounts?: Record<string, number>
 }
 
-type SortOption = 'newest' | 'views' | 'likes'
+type SortOption = 'latest' | 'views' | 'likes'
 
 export default function ArticleListClient({
   articles = [],
@@ -27,43 +28,41 @@ export default function ArticleListClient({
   pageSize = 9,
   currentCategory = 'all',
   currentKeyword = '',
+  currentSortBy = 'latest',
   categories,
   categoryCounts = {},
 }: ArticleListClientProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [search, setSearch] = useState<string>(currentKeyword)
-  const [sortBy, setSortBy] = useState<SortOption>('newest')
+  const [sortBy, setSortBy] = useState<SortOption>(currentSortBy)
 
   const categoryList: Category[] = categories && categories.length > 0
     ? [{ key: 'all', label: '全部文章', icon: 'Sparkles', count: total }, ...categories.filter(c => c.key !== 'all')]
     : CATEGORIES
 
-  // 同步外部 keyword 变化
+  // 同步外部 keyword 与 sortBy 变化
   useEffect(() => {
     setSearch(currentKeyword)
   }, [currentKeyword])
 
-  // 根据当前客户端选中的排序对当前页数据进行简单顺序调整
-  const sortedArticles = [...articles].sort((a, b) => {
-    if (sortBy === 'views') {
-      return (b.views || 0) - (a.views || 0)
-    }
-    if (sortBy === 'likes') {
-      return (b.likes || 0) - (a.likes || 0)
-    }
-    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  })
+  useEffect(() => {
+    setSortBy(currentSortBy)
+  }, [currentSortBy])
+
+  // 后端接口已按置顶及多维排序完整处理，直接渲染服务端分页结果
+  const sortedArticles = articles
 
   // 总页数（基于后端的真实 total）
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
 
   // 更新路由参数辅助函数
-  const updateQuery = (newCategory?: string, newKeyword?: string, newPage?: number) => {
+  const updateQuery = (newCategory?: string, newKeyword?: string, newPage?: number, newSort?: SortOption) => {
     const params = new URLSearchParams()
     const targetCat = newCategory !== undefined ? newCategory : currentCategory
     const targetKw = newKeyword !== undefined ? newKeyword : currentKeyword
     const targetPage = newPage !== undefined ? newPage : 1
+    const targetSort = newSort !== undefined ? newSort : sortBy
 
     if (targetCat && targetCat !== 'all') {
       params.set('category', targetCat)
@@ -74,11 +73,20 @@ export default function ArticleListClient({
     if (targetPage > 1) {
       params.set('page', String(targetPage))
     }
+    if (targetSort && targetSort !== 'latest') {
+      params.set('sortBy', targetSort)
+    }
 
     const qs = params.toString()
     startTransition(() => {
       router.push(`/articles${qs ? `?${qs}` : ''}`)
     })
+  }
+
+  // 切换排序方式
+  const handleSortChange = (key: SortOption) => {
+    setSortBy(key)
+    updateQuery(undefined, undefined, 1, key)
   }
 
   // 切换分类
@@ -171,12 +179,12 @@ export default function ArticleListClient({
 
             {/* 排序按钮 */}
             <div className="flex items-center bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-0.5">
-              {(['newest', 'views', 'likes'] as const).map((key) => {
-                const label = key === 'newest' ? '最新' : key === 'views' ? '最热' : '点赞'
+              {(['latest', 'views', 'likes'] as const).map((key) => {
+                const label = key === 'latest' ? '最新' : key === 'views' ? '最热' : '点赞'
                 return (
                   <button
                     key={key}
-                    onClick={() => setSortBy(key)}
+                    onClick={() => handleSortChange(key)}
                     className={`px-2.5 py-1.5 text-[11px] font-semibold rounded-lg transition-colors cursor-pointer ${
                       sortBy === key
                         ? 'bg-white dark:bg-slate-700 text-theme-primary shadow-2xs font-bold'

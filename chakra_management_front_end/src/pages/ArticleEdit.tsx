@@ -16,6 +16,7 @@ import {
   Modal,
   Alert,
   Popconfirm,
+  Switch,
 } from 'antd'
 import {
   ArrowLeftOutlined,
@@ -31,6 +32,7 @@ import {
   DeleteOutlined,
   LoadingOutlined,
   PlusOutlined,
+  PushpinOutlined,
 } from '@ant-design/icons'
 import { useNavigate, useParams } from 'react-router-dom'
 import MDEditor from '@uiw/react-md-editor'
@@ -196,6 +198,7 @@ export default function ArticleEdit() {
             readingTime: articleData.readingTime || 3,
             coverColor: articleData.coverColor || '#0284c7',
             summary: articleData.summary || '',
+            isPinned: Boolean(articleData.isPinned),
           })
           setContent(articleData.content || '')
           initialContentRef.current = articleData.content || ''
@@ -294,6 +297,7 @@ export default function ArticleEdit() {
     readingTime?: number
     coverColor?: string
     summary?: string
+    isPinned?: boolean
   }) => {
     if (!id) return
 
@@ -319,6 +323,7 @@ export default function ArticleEdit() {
         coverUrl: coverUrl || undefined,
         status: finalTargetStatus,
         version: version >= 0 ? version : undefined,
+        isPinned: isAdmin ? !!values.isPinned : undefined,
       })
       isSavedRef.current = true
       const successTip = finalTargetStatus === ArticleStatus.Published
@@ -716,6 +721,23 @@ export default function ArticleEdit() {
               >
                 <Select options={COLOR_OPTIONS} style={{ width: '100%' }} />
               </Form.Item>
+
+              {/* 置顶展示（仅限管理员配置） */}
+              {isAdmin && (
+                <Form.Item
+                  name="isPinned"
+                  label={
+                    <Space>
+                      <PushpinOutlined style={{ color: '#ef4444' }} />
+                      <span>首页置顶展示</span>
+                    </Space>
+                  }
+                  valuePropName="checked"
+                  extra={<Text type="secondary" style={{ fontSize: 12 }}>开启后文章将在博客前台首页与文章列表置顶置首展示</Text>}
+                >
+                  <Switch checkedChildren="已置顶" unCheckedChildren="普通展示" />
+                </Form.Item>
+              )}
             </Card>
 
             {/* 摘要设置卡片 */}

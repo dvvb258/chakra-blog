@@ -61,6 +61,8 @@ public sealed class CreateArticleCommandHandler : ICommandHandler<CreateArticleC
             ? ArticleStatus.Published
             : (req.Status == (int)ArticleStatus.PendingReview ? ArticleStatus.PendingReview : ArticleStatus.Draft);
 
+        var isPinned = command.IsAdmin && req.IsPinned;
+
         var article = new Article(
             title: req.Title.Trim(),
             content: req.Content,
@@ -72,7 +74,8 @@ public sealed class CreateArticleCommandHandler : ICommandHandler<CreateArticleC
             coverColor: req.CoverColor ?? string.Empty,
             coverUrl: req.CoverUrl ?? string.Empty,
             createdByUserId: command.CurrentUserId,
-            status: initialStatus);
+            status: initialStatus,
+            isPinned: isPinned);
 
         if (req.SeriesId.HasValue && req.SeriesId.Value > 0)
         {

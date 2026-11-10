@@ -15,6 +15,7 @@ type ArticlesPageProps = {
     category?: string
     keyword?: string
     page?: string
+    sortBy?: string
   }>
 }
 
@@ -28,12 +29,16 @@ async function ArticlesContentAsync({
     category?: string
     keyword?: string
     page?: string
+    sortBy?: string
   }>
 }) {
   const resolvedParams = await searchParams
   const currentCategory = resolvedParams.category || 'all'
   const currentKeyword = resolvedParams.keyword || ''
   const currentPage = Math.max(1, Number(resolvedParams.page) || 1)
+  const rawSort = resolvedParams.sortBy?.toLowerCase()
+  const currentSortBy: 'latest' | 'views' | 'likes' =
+    rawSort === 'views' ? 'views' : rawSort === 'likes' ? 'likes' : 'latest'
   const pageSize = 9
 
   // 并行请求：当前筛选条件下的真实文章列表，以及全部分类列表与统计
@@ -43,6 +48,7 @@ async function ArticlesContentAsync({
       keyword: currentKeyword || undefined,
       page: currentPage,
       pageSize,
+      sortBy: currentSortBy,
     }),
     getCategories(),
   ])
@@ -55,6 +61,7 @@ async function ArticlesContentAsync({
       pageSize={pageSize}
       currentCategory={currentCategory}
       currentKeyword={currentKeyword}
+      currentSortBy={currentSortBy}
       categories={categories}
     />
   )

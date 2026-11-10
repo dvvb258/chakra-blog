@@ -56,6 +56,11 @@ public sealed record CreateArticleRequest
     public long? SeriesId { get; init; }
 
     /// <summary>
+    /// 是否置顶展示（限管理员生效，默认 false）
+    /// </summary>
+    public bool IsPinned { get; init; }
+
+    /// <summary>
     /// 指定文章状态（0: 草稿, 1: 直接发布(限Admin), 2: 提交审核）
     /// </summary>
     public int? Status { get; init; }

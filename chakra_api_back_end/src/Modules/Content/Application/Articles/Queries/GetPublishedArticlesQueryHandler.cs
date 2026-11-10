@@ -44,6 +44,13 @@ public sealed class GetPublishedArticlesQueryHandler : IQueryHandler<GetPublishe
 
         var whereClause = "WHERE " + string.Join(" AND ", conditions);
 
+        var orderClause = request.SortBy?.Trim().ToLowerInvariant() switch
+        {
+            "views" => "ORDER BY a.is_pinned DESC, a.views DESC, a.created_at DESC",
+            "likes" => "ORDER BY a.is_pinned DESC, a.likes DESC, a.created_at DESC",
+            _ => "ORDER BY a.is_pinned DESC, a.created_at DESC, a.id DESC"
+        };
+
         var countSql = $"""
             SELECT COUNT(*) 
             FROM articles a
@@ -54,11 +61,11 @@ public sealed class GetPublishedArticlesQueryHandler : IQueryHandler<GetPublishe
             SELECT a.id, a.title, a.summary, a.tags,
                    a.category_id,
                    c.name AS category_name,
-                   a.author, a.reading_time, a.cover_color, a.cover_url, a.views, a.likes, a.series_id, a.created_at, a.updated_at, a.version
+                   a.author, a.reading_time, a.cover_color, a.cover_url, a.views, a.likes, a.series_id, a.is_pinned, a.created_at, a.updated_at, a.version
             FROM articles a
             LEFT JOIN categories c ON a.category_id = c.id
             {whereClause}
-            ORDER BY a.created_at DESC, a.id DESC
+            {orderClause}
             LIMIT @PageSize OFFSET @Offset
             """;
 

@@ -19,6 +19,7 @@ export function getArticles(params: {
   tag?: string
   seriesId?: string | number
   status?: number
+  isPinned?: boolean
 }): Promise<PagedResult<ArticleListItemDto>> {
   return client.get('/admin/articles', { params })
 }
@@ -73,6 +74,13 @@ export function approveArticle(id: string | number): Promise<string> {
  */
 export function rejectArticle(id: string | number): Promise<string> {
   return client.put(`/admin/articles/${id}/reject`)
+}
+
+/**
+ * 切换文章置顶状态（仅限管理员）
+ */
+export function toggleArticlePin(id: string | number, isPinned: boolean): Promise<string> {
+  return client.put(`/admin/articles/${id}/pin`, null, { params: { isPinned } })
 }
 
 /**

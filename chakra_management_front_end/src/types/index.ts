@@ -170,6 +170,7 @@ export interface ArticleListItemDto {
   coverUrl?: string
   views: number
   seriesId?: string | number | null
+  isPinned?: boolean
   status: number
   createdByUserId?: string | number
   createdAt: string
@@ -242,6 +243,7 @@ export interface CreateArticleRequest {
   coverColor?: string
   coverUrl?: string
   seriesId?: string | number | null
+  isPinned?: boolean
   status?: number
 }
 
@@ -259,6 +261,7 @@ export interface UpdateArticleRequest {
   coverColor?: string
   coverUrl?: string
   seriesId?: string | number | null
+  isPinned?: boolean
   status?: number
   version?: number
 }
