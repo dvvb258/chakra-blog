@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS articles (
     summary VARCHAR(500) NOT NULL DEFAULT '',
     reading_time INT NOT NULL DEFAULT 0,
     tags TEXT[] NOT NULL DEFAULT '{}',
-    category_id BIGINT NOT NULL DEFAULT 0 REFERENCES categories(id) ON DELETE RESTRICT,
+    category_id BIGINT NOT NULL REFERENCES categories(id) ON DELETE RESTRICT,
     author VARCHAR(100) NOT NULL DEFAULT '',
     cover_color VARCHAR(50) NOT NULL DEFAULT '',
     cover_url VARCHAR(500) NOT NULL DEFAULT '',
@@ -311,11 +311,13 @@ VALUES
 
     -- 角色管理操作项 (type = 3)
     (501, 500, '查看角色', '', 'system:role:view', NULL, 1, TRUE, 3, NOW(), FALSE),
-    (502, 500, '维护角色', '', 'system:role:manage', NULL, 2, TRUE, 3, NOW(), FALSE),
+    (502, 500, '新建角色', '', 'system:role:create', NULL, 2, TRUE, 3, NOW(), FALSE),
+    (503, 500, '编辑角色', '', 'system:role:edit', NULL, 3, TRUE, 3, NOW(), FALSE),
+    (504, 500, '删除角色', '', 'system:role:delete', NULL, 4, TRUE, 3, NOW(), FALSE),
 
     -- 菜单管理操作项 (type = 3)
     (551, 550, '查看菜单', '', 'system:menu:view', NULL, 1, TRUE, 3, NOW(), FALSE),
-    (552, 550, '维护菜单', '', 'system:menu:manage', NULL, 2, TRUE, 3, NOW(), FALSE),
+    (552, 550, '维护菜单', '', 'system:menu:edit', NULL, 2, TRUE, 3, NOW(), FALSE),
 
     -- 个人中心操作项 (type = 3)
     (601, 600, '查看用户', '', 'system:user:view', NULL, 1, TRUE, 3, NOW(), FALSE),
@@ -347,7 +349,14 @@ VALUES
     (2008, 2, 601, NOW(), FALSE),
     -- Admin 站点设置（超管本身具备通配特权，此处用于角色权限界面展示）
     (1009, 1, 650, NOW(), FALSE),
-    (1010, 1, 651, NOW(), FALSE)
+    (1010, 1, 651, NOW(), FALSE),
+    -- Admin 角色与菜单细粒度操作项
+    (1011, 1, 501, NOW(), FALSE),
+    (1012, 1, 502, NOW(), FALSE),
+    (1013, 1, 503, NOW(), FALSE),
+    (1014, 1, 504, NOW(), FALSE),
+    (1015, 1, 551, NOW(), FALSE),
+    (1016, 1, 552, NOW(), FALSE)
 ON CONFLICT (id) DO NOTHING;
 
 COMMIT;

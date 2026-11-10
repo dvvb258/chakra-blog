@@ -101,7 +101,7 @@ function AppRoutes() {
           <Route
             path="/roles"
             element={
-              <AuthGuard requireAdmin path="/roles">
+              <AuthGuard path="/roles">
                 <RoleList />
               </AuthGuard>
             }
@@ -109,7 +109,7 @@ function AppRoutes() {
           <Route
             path="/menus"
             element={
-              <AuthGuard requireAdmin path="/menus">
+              <AuthGuard path="/menus">
                 <MenuList />
               </AuthGuard>
             }

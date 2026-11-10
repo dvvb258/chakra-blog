@@ -46,6 +46,8 @@ import {
   ProfileOutlined,
 } from '@ant-design/icons'
 import * as menusApi from '@/api/menus'
+import PermissionGuard from '@/components/PermissionGuard'
+import { PERMISSIONS } from '@/constants/permissions'
 import type { MenuDto, CreateMenuRequest, UpdateMenuRequest, PermissionMetadata } from '@/types'
 import styles from './MenuList.module.css'
 
@@ -336,34 +338,40 @@ export default function MenuList() {
       width: 220,
       render: (_, record) => (
         <Space size="small">
-          <Button
-            size="small"
-            type="link"
-            icon={<PlusOutlined />}
-            onClick={() => handleOpenCreateSub(record)}
-          >
-            添加子项
-          </Button>
-          <Button
-            size="small"
-            type="link"
-            icon={<EditOutlined />}
-            onClick={() => handleOpenEdit(record)}
-          >
-            编辑
-          </Button>
-          <Popconfirm
-            title="确认删除该菜单项？"
-            description="删除后将同步解除角色的此项权限绑定；若有子菜单需先清理子菜单。"
-            onConfirm={() => handleDelete(record)}
-            okText="确认删除"
-            cancelText="取消"
-            okButtonProps={{ danger: true }}
-          >
-            <Button size="small" type="link" danger icon={<DeleteOutlined />}>
-              删除
+          <PermissionGuard code={PERMISSIONS.MENU_EDIT}>
+            <Button
+              size="small"
+              type="link"
+              icon={<PlusOutlined />}
+              onClick={() => handleOpenCreateSub(record)}
+            >
+              添加子项
             </Button>
-          </Popconfirm>
+          </PermissionGuard>
+          <PermissionGuard code={PERMISSIONS.MENU_EDIT}>
+            <Button
+              size="small"
+              type="link"
+              icon={<EditOutlined />}
+              onClick={() => handleOpenEdit(record)}
+            >
+              编辑
+            </Button>
+          </PermissionGuard>
+          <PermissionGuard code={PERMISSIONS.MENU_EDIT}>
+            <Popconfirm
+              title="确认删除该菜单项？"
+              description="删除后将同步解除角色的此项权限绑定；若有子菜单需先清理子菜单。"
+              onConfirm={() => handleDelete(record)}
+              okText="确认删除"
+              cancelText="取消"
+              okButtonProps={{ danger: true }}
+            >
+              <Button size="small" type="link" danger icon={<DeleteOutlined />}>
+                删除
+              </Button>
+            </Popconfirm>
+          </PermissionGuard>
         </Space>
       ),
     },
@@ -404,13 +412,15 @@ export default function MenuList() {
               >
                 刷新
               </Button>
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={handleOpenCreateRoot}
-              >
-                新建顶级菜单
-              </Button>
+              <PermissionGuard code={PERMISSIONS.MENU_EDIT}>
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={handleOpenCreateRoot}
+                >
+                  新建顶级菜单
+                </Button>
+              </PermissionGuard>
             </Space>
           </Col>
         </Row>

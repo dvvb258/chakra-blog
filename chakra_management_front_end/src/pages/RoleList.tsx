@@ -29,6 +29,8 @@ import {
   CheckCircleFilled,
 } from '@ant-design/icons'
 import * as rolesApi from '@/api/roles'
+import PermissionGuard from '@/components/PermissionGuard'
+import { PERMISSIONS } from '@/constants/permissions'
 import type { RoleDto, MenuDto, CreateRoleRequest, UpdateRoleRequest } from '@/types'
 import { RoleCodes } from '@/constants/roles'
 import styles from './RoleList.module.css'
@@ -283,27 +285,31 @@ export default function RoleList() {
       width: 150,
       render: (_, record) => (
         <Space size={8}>
-          <Button
-            type="link"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => handleOpenEdit(record)}
-          >
-            配置权限
-          </Button>
-          {!record.isSystem && record.code !== RoleCodes.Admin && (
-            <Popconfirm
-              title={`确定要删除角色 [${record.name}] 吗？`}
-              description="删除后，请确保该角色下无任何正在使用的用户。"
-              okText="确认删除"
-              cancelText="取消"
-              okButtonProps={{ danger: true }}
-              onConfirm={() => handleDelete(record)}
+          <PermissionGuard code={PERMISSIONS.ROLE_EDIT}>
+            <Button
+              type="link"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => handleOpenEdit(record)}
             >
-              <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-                删除
-              </Button>
-            </Popconfirm>
+              配置权限
+            </Button>
+          </PermissionGuard>
+          {!record.isSystem && record.code !== RoleCodes.Admin && (
+            <PermissionGuard code={PERMISSIONS.ROLE_DELETE}>
+              <Popconfirm
+                title={`确定要删除角色 [${record.name}] 吗？`}
+                description="删除后，请确保该角色下无任何正在使用的用户。"
+                okText="确认删除"
+                cancelText="取消"
+                okButtonProps={{ danger: true }}
+                onConfirm={() => handleDelete(record)}
+              >
+                <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+                  删除
+                </Button>
+              </Popconfirm>
+            </PermissionGuard>
           )}
         </Space>
       ),
@@ -336,9 +342,11 @@ export default function RoleList() {
               <Button icon={<ReloadOutlined />} onClick={fetchData} loading={loading}>
                 刷新
               </Button>
-              <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreate}>
-                新增角色
-              </Button>
+              <PermissionGuard code={PERMISSIONS.ROLE_CREATE}>
+                <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreate}>
+                  新增角色
+                </Button>
+              </PermissionGuard>
             </Space>
           </Col>
         </Row>

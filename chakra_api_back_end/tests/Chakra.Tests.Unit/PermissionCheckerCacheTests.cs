@@ -1,5 +1,7 @@
 using FluentAssertions;
+using Identity.Application.Common;
 using Identity.Domain.Entities;
+using Identity.Domain.Enums;
 using Identity.Infrastructure.Data;
 using Identity.Infrastructure.Services;
 using MediatR;
@@ -49,6 +51,55 @@ public class PermissionCheckerCacheTests
 
         (await checker.HasPermissionAsync("Editor", "article:manage")).Should().BeTrue();
         (await checker.HasPermissionAsync("editor", "series:manage")).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task HasPermissionAsync_ShouldGrant_WhenRoleOwnsParentMenuWithChildren()
+    {
+        await using var db = CreateInMemoryDbContext();
+        var role = new Role("editor", "编辑");
+        var parentMenu = new Menu("文章管理", "/articles", "article:manage", type: MenuType.Menu);
+        var childButton = new Menu("新建文章", "", "content:article:create", parentId: parentMenu.Id, type: MenuType.Button);
+
+        db.Roles.Add(role);
+        db.Menus.AddRange(parentMenu, childButton);
+        await db.SaveChangesAsync();
+
+        db.RoleMenus.AddRange(
+            new RoleMenu(role.Id, parentMenu.Id),
+            new RoleMenu(role.Id, childButton.Id));
+        await db.SaveChangesAsync();
+
+        var checker = CreateChecker(db);
+
+        // 父级菜单和子级按钮在分配给角色后均应鉴权通过
+        (await checker.HasPermissionAsync("Editor", "article:manage")).Should().BeTrue();
+        (await checker.HasPermissionAsync("editor", "content:article:create")).Should().BeTrue();
+        (await checker.HasPermissionAsync("editor", "content:article:delete")).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task GetUserMenusAndPermissionsAsync_ShouldReturnAuthorizedMenuPathsAndPermissions_IncludingParentMenus()
+    {
+        await using var db = CreateInMemoryDbContext();
+        var role = new Role("custom_editor", "自定义编辑");
+        var parentMenu = new Menu("文章管理", "/articles", "article:manage", type: MenuType.Menu);
+        var childButton = new Menu("新建文章", "", "content:article:create", parentId: parentMenu.Id, type: MenuType.Button);
+
+        db.Roles.Add(role);
+        db.Menus.AddRange(parentMenu, childButton);
+        await db.SaveChangesAsync();
+
+        db.RoleMenus.AddRange(
+            new RoleMenu(role.Id, parentMenu.Id),
+            new RoleMenu(role.Id, childButton.Id));
+        await db.SaveChangesAsync();
+
+        var (menus, permissions) = await db.GetUserMenusAndPermissionsAsync("custom_editor");
+
+        menus.Should().Contain("/articles");
+        permissions.Should().Contain("article:manage");
+        permissions.Should().Contain("content:article:create");
     }
 
     [Fact]

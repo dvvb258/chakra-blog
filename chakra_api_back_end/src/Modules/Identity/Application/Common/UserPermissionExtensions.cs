@@ -58,19 +58,8 @@ public static class UserPermissionExtensions
             .OrderBy(m => m.Sort)
             .ToListAsync(cancellationToken);
 
-        // 查找所有包含子节点（菜单/按钮）的父级容器菜单 ID 集合
-        // 此类容器节点的权限代码（如 category:manage, article:manage）仅供页面结构组织，绝不作为普通角色的细粒度操作权限下发
-        var parentMenuIds = await dbContext.Menus
-            .AsNoTracking()
-            .Where(m => !m.IsDeleted && m.ParentId != null)
-            .Select(m => m.ParentId!.Value)
-            .Distinct()
-            .ToListAsync(cancellationToken);
-
-        var parentMenuIdSet = parentMenuIds.ToHashSet();
-
         return (
             menus.Where(m => m.Type != MenuType.Button && !string.IsNullOrWhiteSpace(m.Path)).Select(m => m.Path).Distinct().ToList(),
-            menus.Where(m => !parentMenuIdSet.Contains(m.Id) && !string.IsNullOrWhiteSpace(m.PermissionCode)).Select(m => m.PermissionCode).Distinct().ToList());
+            menus.Where(m => !string.IsNullOrWhiteSpace(m.PermissionCode)).Select(m => m.PermissionCode).Distinct().ToList());
     }
 }

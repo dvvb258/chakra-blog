@@ -54,19 +54,10 @@ public sealed class PermissionChecker : IPermissionChecker
         }
 
         // 2. 缓存未命中时查询数据库；结果缓存 30 秒，角色/菜单变更最迟 30 秒后在所有 Pod 生效
-        // 排除包含子节点的父级容器菜单，普通角色的具体业务权限必须来自叶子节点（按钮/独立页面）
-        var parentMenuIds = await _dbContext.Menus
-            .AsNoTracking()
-            .Where(m => !m.IsDeleted && m.ParentId != null)
-            .Select(m => m.ParentId!.Value)
-            .Distinct()
-            .ToListAsync(cancellationToken);
-
         var hasPermission = await (from rm in _dbContext.RoleMenus.AsNoTracking()
                                    join r in _dbContext.Roles.AsNoTracking() on rm.RoleId equals r.Id
                                    join m in _dbContext.Menus.AsNoTracking() on rm.MenuId equals m.Id
                                    where !rm.IsDeleted && !r.IsDeleted && !m.IsDeleted
-                                         && !parentMenuIds.Contains(m.Id)
                                          && r.Code.ToLower() == normalizedRole
                                          && m.PermissionCode != null && m.PermissionCode.ToLower() == normalizedPermission
                                    select rm.Id)
