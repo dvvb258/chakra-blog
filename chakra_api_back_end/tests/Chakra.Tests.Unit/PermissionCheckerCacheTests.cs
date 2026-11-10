@@ -6,6 +6,7 @@ using Identity.Infrastructure.Data;
 using Identity.Infrastructure.Services;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Caching.Memory;
 using Xunit;
 
@@ -25,6 +26,7 @@ public class PermissionCheckerCacheTests
     {
         var options = new DbContextOptionsBuilder<IdentityDbContext>()
             .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
             .Options;
 
         return new IdentityDbContext(options, new FakePublisher());
@@ -144,5 +146,53 @@ public class PermissionCheckerCacheTests
 
         (await checker.HasPermissionAsync(string.Empty, "article:manage")).Should().BeFalse();
         (await checker.HasPermissionAsync("editor", " ")).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task UserAccessValidator_ShouldReturnTrueAndCache_WhenUserIsActiveAndRoleMatches()
+    {
+        await using var db = CreateInMemoryDbContext();
+        using var cache = new MemoryCache(new MemoryCacheOptions());
+
+        var user = new User("testuser", "测试用户", "Editor");
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var validator = new UserAccessValidator(db, cache);
+
+        // 第一次调用：查库并缓存
+        var allowed = await validator.IsAccessAllowedAsync(user.Id, "Editor");
+        allowed.Should().BeTrue();
+
+        // 此时从数据库删除该用户，但在 60 秒缓存期内依然返回 true，证明命中缓存避免查库
+        db.Users.Remove(user);
+        await db.SaveChangesAsync();
+
+        var cachedAllowed = await validator.IsAccessAllowedAsync(user.Id, "Editor");
+        cachedAllowed.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task UserAccessValidator_ShouldReturnFalse_WhenUserInactiveOrRoleMismatch()
+    {
+        await using var db = CreateInMemoryDbContext();
+        using var cache = new MemoryCache(new MemoryCacheOptions());
+
+        var user = new User("inactive_user", "未激活用户", "Editor");
+        user.Deactivate();
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var validator = new UserAccessValidator(db, cache);
+
+        // 停用用户应当被拒绝
+        (await validator.IsAccessAllowedAsync(user.Id, "Editor")).Should().BeFalse();
+
+        // 角色不匹配应当被拒绝
+        (await validator.IsAccessAllowedAsync(user.Id, "Admin")).Should().BeFalse();
+
+        // 非法入参应当被拒绝
+        (await validator.IsAccessAllowedAsync(0, "Editor")).Should().BeFalse();
+        (await validator.IsAccessAllowedAsync(user.Id, "  ")).Should().BeFalse();
     }
 }

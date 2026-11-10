@@ -83,22 +83,26 @@ export default function AboutPage() {
 
         {/* 外部联系按钮 */}
         <div className="mt-6 flex flex-wrap items-center justify-center sm:justify-start gap-3">
-          <Link
-            href={siteConfig.socials.github}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-4 py-2 bg-theme-surface hover:bg-theme-surface-hover text-slate-700 dark:text-slate-200 hover:text-theme-primary text-xs font-bold rounded-xl border border-theme-border/60 hover:border-theme-primary transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
-          >
-            <Github className="w-4 h-4" />
-            <span>GitHub 开源代码库</span>
-          </Link>
-          <a
-            href={siteConfig.socials.email}
-            className="px-4 py-2 bg-theme-surface hover:bg-theme-surface-hover text-slate-700 dark:text-slate-200 hover:text-theme-primary text-xs font-bold rounded-xl border border-theme-border/60 hover:border-theme-primary transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
-          >
-            <Mail className="w-4 h-4" />
-            <span>发送邮件</span>
-          </a>
+          {siteConfig.socials.github ? (
+            <Link
+              href={siteConfig.socials.github}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2 bg-theme-surface hover:bg-theme-surface-hover text-slate-700 dark:text-slate-200 hover:text-theme-primary text-xs font-bold rounded-xl border border-theme-border/60 hover:border-theme-primary transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
+            >
+              <Github className="w-4 h-4" />
+              <span>GitHub 开源代码库</span>
+            </Link>
+          ) : null}
+          {siteConfig.socials.email ? (
+            <a
+              href={`mailto:${siteConfig.socials.email.replace(/^mailto:/i, '')}`}
+              className="px-4 py-2 bg-theme-surface hover:bg-theme-surface-hover text-slate-700 dark:text-slate-200 hover:text-theme-primary text-xs font-bold rounded-xl border border-theme-border/60 hover:border-theme-primary transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
+            >
+              <Mail className="w-4 h-4" />
+              <span>发送邮件</span>
+            </a>
+          ) : null}
         </div>
       </div>
 
