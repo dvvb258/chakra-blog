@@ -283,11 +283,43 @@ public class ArticlePermissionAndStatusTests
 
         // Act - Toggle pin to false
         var toggleHandler = new ToggleArticlePinCommandHandler(db);
-        await toggleHandler.Handle(new ToggleArticlePinCommand(articleId, false), CancellationToken.None);
+        await toggleHandler.Handle(new ToggleArticlePinCommand(articleId, false, IsAdmin: true), CancellationToken.None);
 
         // Assert toggled
         var updated = await db.Articles.FindAsync(articleId);
         updated!.IsPinned.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task NonAdmin_CannotTogglePin_OnExistingArticle()
+    {
+        // Arrange
+        await using var db = CreateInMemoryDbContext();
+        var category = new Category("技术分享");
+        db.Categories.Add(category);
+
+        var article = new Article(
+            title: "普通作者的文章",
+            content: "正文内容",
+            categoryId: category.Id,
+            createdByUserId: 100);
+        db.Articles.Add(article);
+        await db.SaveChangesAsync();
+
+        var handler = new ToggleArticlePinCommandHandler(db);
+
+        // Act
+        var act = async () => await handler.Handle(
+            new ToggleArticlePinCommand(article.Id, true, IsAdmin: false),
+            CancellationToken.None);
+
+        // Assert
+        var exception = await act.Should().ThrowAsync<BusinessException>();
+        exception.Which.Code.Should().Be(403);
+        exception.Which.Message.Should().Contain("仅管理员");
+
+        var unchanged = await db.Articles.FindAsync(article.Id);
+        unchanged!.IsPinned.Should().BeFalse();
     }
 
     [Fact]

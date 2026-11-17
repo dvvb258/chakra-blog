@@ -9,5 +9,6 @@ namespace Content.Application.Articles.Commands;
 /// </summary>
 /// <param name="Id">文章ID</param>
 /// <param name="IsPinned">是否置顶</param>
+/// <param name="IsAdmin">当前操作人是否管理员</param>
 [AuditLog(AuditModules.Article, "切换文章置顶状态")]
-public sealed record ToggleArticlePinCommand(long Id, bool IsPinned) : ICommand;
+public sealed record ToggleArticlePinCommand(long Id, bool IsPinned, bool IsAdmin) : ICommand;

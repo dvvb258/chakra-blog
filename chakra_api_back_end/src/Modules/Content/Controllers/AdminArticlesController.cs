@@ -196,18 +196,19 @@ public class AdminArticlesController : BaseApiController
     }
 
     /// <summary>
-    /// 切换文章置顶状态
+    /// 切换文章置顶状态（仅管理员）
     /// </summary>
     /// <param name="id">文章 ID</param>
     /// <param name="isPinned">是否置顶</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>操作状态</returns>
-    [RequirePermission(Permissions.ArticleEdit)]
+    [Authorize(Roles = RoleNames.Admin)]
     [HttpPut("{id:long}/pin")]
     [ProducesResponseType(typeof(ApiResult<string>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResult<object>), StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> TogglePinAsync(long id, [FromQuery] bool isPinned, CancellationToken cancellationToken)
     {
-        var command = new ToggleArticlePinCommand(id, isPinned);
+        var command = new ToggleArticlePinCommand(id, isPinned, _currentUser.IsInRole(RoleNames.Admin));
         await _mediator.Send(command, cancellationToken);
         return Success(isPinned ? "文章已置顶" : "文章已取消置顶");
     }

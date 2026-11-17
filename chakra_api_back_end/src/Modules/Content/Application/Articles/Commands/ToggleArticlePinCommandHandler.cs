@@ -24,6 +24,11 @@ public sealed class ToggleArticlePinCommandHandler : ICommandHandler<ToggleArtic
     /// <inheritdoc />
     public async Task Handle(ToggleArticlePinCommand command, CancellationToken cancellationToken)
     {
+        if (!command.IsAdmin)
+        {
+            throw new BusinessException("权限不足：仅管理员可以置顶或取消置顶文章", 403);
+        }
+
         var article = await _dbContext.Articles
             .FirstOrDefaultAsync(a => a.Id == command.Id && !a.IsDeleted, cancellationToken);
 
