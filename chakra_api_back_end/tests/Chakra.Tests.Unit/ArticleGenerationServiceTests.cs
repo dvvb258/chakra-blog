@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using Content.Application.Common;
+using Content.Application.Common.Models;
 using Content.Infrastructure.Data;
 using Content.Infrastructure.Services;
 using FluentAssertions;
@@ -101,6 +102,30 @@ public class ArticleGenerationServiceTests
         public HttpClient CreateClient(string name) => new(_handler);
     }
 
+    private sealed class FakeArticleGenerationReadStore : IArticleGenerationReadStore
+    {
+        public HashSet<string> ExistingSourceLinks { get; } = new(StringComparer.Ordinal);
+
+        public List<ArticleGenerationOption> Categories { get; } = [];
+
+        public List<ArticleGenerationOption> SeriesList { get; } = [];
+
+        public Task<bool> SourceLinkExistsAsync(string sourceLink, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(ExistingSourceLinks.Contains(sourceLink));
+        }
+
+        public Task<IReadOnlyList<ArticleGenerationOption>> GetCategoriesAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyList<ArticleGenerationOption>>(Categories);
+        }
+
+        public Task<IReadOnlyList<ArticleGenerationOption>> GetSeriesAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyList<ArticleGenerationOption>>(SeriesList);
+        }
+    }
+
     private static BlogDbContext CreateInMemoryDbContext()
     {
         var options = new DbContextOptionsBuilder<BlogDbContext>()
@@ -148,6 +173,7 @@ public class ArticleGenerationServiceTests
 
         var service = new ArticleGenerationService(
             db,
+            new FakeArticleGenerationReadStore(),
             clientFactory,
             chatClient,
             aiOptions,
@@ -168,5 +194,54 @@ public class ArticleGenerationServiceTests
         article.Should().NotBeNull();
         article!.CategoryId.Should().Be(categories[0].Id);
         article.Status.Should().Be(Content.Domain.Enums.ArticleStatus.Published);
+    }
+
+    [Fact]
+    public async Task GenerateArticleAsync_WhenSourceLinkAlreadyExists_ShouldSkipGeneration()
+    {
+        // Arrange
+        await using var db = CreateInMemoryDbContext();
+        const string sourceLink = "https://example.com/existing-article";
+
+        var rssXml = $"""
+            <?xml version="1.0" encoding="utf-8"?>
+            <rss version="2.0">
+              <channel>
+                <title>.NET Blog</title>
+                <link>https://devblogs.microsoft.com/dotnet</link>
+                <item>
+                  <title>Existing article</title>
+                  <link>{sourceLink}</link>
+                  <pubDate>{DateTime.UtcNow.ToString("R")}</pubDate>
+                  <description>Already imported</description>
+                </item>
+              </channel>
+            </rss>
+            """;
+
+        var readStore = new FakeArticleGenerationReadStore();
+        readStore.ExistingSourceLinks.Add(sourceLink);
+
+        var service = new ArticleGenerationService(
+            db,
+            readStore,
+            new FakeHttpClientFactory(rssXml),
+            new FakeChatClient(),
+            Options.Create(new AISettings
+            {
+                AutoGenerateEnabled = true,
+                Key = "test-key",
+                Endpoint = "https://api.openai.com/v1",
+                ModelName = "gpt-4o-mini",
+                RssSources = ["https://devblogs.microsoft.com/dotnet/feed/"],
+            }),
+            NullLogger<ArticleGenerationService>.Instance);
+
+        // Act
+        var result = await service.GenerateArticleAsync(CancellationToken.None);
+
+        // Assert
+        result.Should().BeFalse();
+        (await db.Articles.CountAsync()).Should().Be(0);
     }
 }

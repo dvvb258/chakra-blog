@@ -1,4 +1,5 @@
 using Content.Application.Common;
+using Content.Application.Common.Models;
 using Content.Domain.Common;
 using Content.Domain.Entities;
 using Content.Infrastructure.Data;
@@ -25,6 +26,7 @@ namespace Content.Infrastructure.Services;
 public class ArticleGenerationService : IArticleGenerationService
 {
     private readonly BlogDbContext _dbContext;
+    private readonly IArticleGenerationReadStore _readStore;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IChatClient _chatClient;
     private readonly IConnectionMultiplexer? _redis;
@@ -35,6 +37,7 @@ public class ArticleGenerationService : IArticleGenerationService
     /// Initializes a new instance of the <see cref="ArticleGenerationService"/> class.
     /// </summary>
     /// <param name="dbContext">数据库上下文</param>
+    /// <param name="readStore">文章自动生成流程读模型存储</param>
     /// <param name="httpClientFactory">HTTP 客户端工厂</param>
     /// <param name="chatClient">统一聊天客户端（基于 Microsoft.Extensions.AI 抽象）</param>
     /// <param name="aiOptions">AI 服务配置选项</param>
@@ -42,6 +45,7 @@ public class ArticleGenerationService : IArticleGenerationService
     /// <param name="redis">可选 Redis 客户端连接</param>
     public ArticleGenerationService(
         BlogDbContext dbContext,
+        IArticleGenerationReadStore readStore,
         IHttpClientFactory httpClientFactory,
         IChatClient chatClient,
         IOptions<AISettings> aiOptions,
@@ -49,6 +53,7 @@ public class ArticleGenerationService : IArticleGenerationService
         IConnectionMultiplexer? redis = null)
     {
         _dbContext = dbContext;
+        _readStore = readStore;
         _httpClientFactory = httpClientFactory;
         _chatClient = chatClient;
         _redis = redis;
@@ -122,7 +127,7 @@ public class ArticleGenerationService : IArticleGenerationService
         foreach (var candidate in candidates)
         {
             // 2.1 检查数据库中是否已存在该链接
-            if (await _dbContext.Articles.AnyAsync(a => a.SourceLink == candidate.Link, cancellationToken))
+            if (await _readStore.SourceLinkExistsAsync(candidate.Link, cancellationToken))
             {
                 continue;
             }
@@ -213,19 +218,11 @@ public class ArticleGenerationService : IArticleGenerationService
                 return false;
 
             // 4. 从数据库查询所有可选的分类和专栏列表，提供给 LLM 进行精准匹配决策
-            var availableCategories = await _dbContext.Categories
-                .AsNoTracking()
-                .Where(c => !c.IsDeleted)
-                .OrderBy(c => c.Sort)
-                .Select(c => new { c.Id, c.Name, c.Description })
-                .ToListAsync(cancellationToken);
+            IReadOnlyList<ArticleGenerationOption> availableCategories =
+                await _readStore.GetCategoriesAsync(cancellationToken);
 
-            var availableSeries = await _dbContext.Series
-                .AsNoTracking()
-                .Where(s => !s.IsDeleted)
-                .OrderBy(s => s.CreatedAt)
-                .Select(s => new { s.Id, s.Name, s.Description })
-                .ToListAsync(cancellationToken);
+            IReadOnlyList<ArticleGenerationOption> availableSeries =
+                await _readStore.GetSeriesAsync(cancellationToken);
 
             var categoriesPromptText = availableCategories.Count > 0
                 ? string.Join("\n", availableCategories.Select(c => $"- 分类ID: {c.Id} | 名称: \"{c.Name}\" | 说明: {c.Description}"))
@@ -322,16 +319,10 @@ public class ArticleGenerationService : IArticleGenerationService
             if (availableCategories.Count == 0)
             {
                 // 系统内暂无任何分类：动态自愈创建默认分类并持久化，杜绝外键约束冲突 (DB-23503)
-                var defaultCategory = await _dbContext.Categories
-                    .FirstOrDefaultAsync(c => !c.IsDeleted, cancellationToken);
-
-                if (defaultCategory == null)
-                {
-                    defaultCategory = new Category("技术分享", "系统默认技术文章分类");
-                    await _dbContext.Categories.AddAsync(defaultCategory, cancellationToken);
-                    await _dbContext.SaveChangesAsync(cancellationToken);
-                    _logger.LogInformation("系统检测到无可用分类，已自动创建默认分类 [技术分享] (ID: {Id})", defaultCategory.Id);
-                }
+                var defaultCategory = new Category("技术分享", "系统默认技术文章分类");
+                await _dbContext.Categories.AddAsync(defaultCategory, cancellationToken);
+                await _dbContext.SaveChangesAsync(cancellationToken);
+                _logger.LogInformation("系统检测到无可用分类，已自动创建默认分类 [技术分享] (ID: {Id})", defaultCategory.Id);
 
                 categoryId = defaultCategory.Id;
             }

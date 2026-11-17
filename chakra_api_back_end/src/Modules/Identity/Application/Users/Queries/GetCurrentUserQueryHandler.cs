@@ -1,7 +1,7 @@
+using Dapper;
 using Identity.Application.Common;
+using Identity.Application.Common.Interfaces;
 using Identity.Application.Users.DTOs;
-using Identity.Infrastructure.Data;
-using Microsoft.EntityFrameworkCore;
 using SharedKernel.Application.CQRS;
 using SharedKernel.Application.Exceptions;
 
@@ -12,44 +12,48 @@ namespace Identity.Application.Users.Queries;
 /// </summary>
 public sealed class GetCurrentUserQueryHandler : IQueryHandler<GetCurrentUserQuery, CurrentUserDto>
 {
-    private readonly IdentityDbContext _dbContext;
+    private readonly IIdentityDbConnectionFactory _connectionFactory;
+    private readonly IIdentityReadStore _readStore;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GetCurrentUserQueryHandler"/> class.
     /// </summary>
-    /// <param name="dbContext">身份认证数据库上下文</param>
-    public GetCurrentUserQueryHandler(IdentityDbContext dbContext)
+    /// <param name="connectionFactory">数据库连接工厂</param>
+    /// <param name="readStore">Identity 读模型存储</param>
+    public GetCurrentUserQueryHandler(
+        IIdentityDbConnectionFactory connectionFactory,
+        IIdentityReadStore readStore)
     {
-        _dbContext = dbContext;
+        _connectionFactory = connectionFactory;
+        _readStore = readStore;
     }
 
     /// <inheritdoc />
     public async Task<CurrentUserDto> Handle(GetCurrentUserQuery request, CancellationToken cancellationToken)
     {
-        var user = await _dbContext.Users
-            .AsNoTracking()
-            .FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
+        const string sql = """
+            SELECT id, username, nickname, email, avatar_url, role,
+                   (password_hash IS NOT NULL AND password_hash <> '') AS has_password,
+                   github_id, last_login_at
+            FROM users
+            WHERE id = @UserId AND is_del = false
+            """;
+
+        CurrentUserDto? user;
+
+        using (var connection = _connectionFactory.CreateConnection())
+        {
+            var command = new CommandDefinition(sql, new { UserId = request.UserId }, cancellationToken: cancellationToken);
+            user = await connection.QueryFirstOrDefaultAsync<CurrentUserDto>(command);
+        }
 
         if (user is null)
         {
             throw new NotFoundException("User", request.UserId);
         }
 
-        var (menuPaths, permissions) = await _dbContext.GetUserMenusAndPermissionsAsync(user.Role, cancellationToken);
+        var (menuPaths, permissions) = await _readStore.GetUserMenusAndPermissionsAsync(user.Role, cancellationToken);
 
-        return new CurrentUserDto
-        {
-            Id = user.Id,
-            Username = user.Username,
-            Nickname = user.Nickname,
-            Email = user.Email,
-            AvatarUrl = user.AvatarUrl,
-            Role = user.Role,
-            GithubId = user.GithubId,
-            LastLoginAt = user.LastLoginAt,
-            HasPassword = user.HasPassword,
-            Menus = menuPaths,
-            Permissions = permissions,
-        };
+        return user with { Menus = menuPaths, Permissions = permissions };
     }
 }

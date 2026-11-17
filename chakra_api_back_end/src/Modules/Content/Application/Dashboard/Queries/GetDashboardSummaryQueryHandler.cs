@@ -43,13 +43,13 @@ public sealed class GetDashboardSummaryQueryHandler : IQueryHandler<GetDashboard
             SELECT COUNT(*) FROM series WHERE is_del = false;
             SELECT COALESCE(c.name, '未分类') AS category, COUNT(*) AS count
             FROM articles a
-            LEFT JOIN categories c ON a.category_id = c.id
+            LEFT JOIN categories c ON a.category_id = c.id AND c.is_del = false
             WHERE a.is_del = false
             GROUP BY c.name
             ORDER BY count DESC;
             SELECT a.id, a.title, COALESCE(c.name, '未分类') AS category, a.views, a.author, a.created_at
             FROM articles a
-            LEFT JOIN categories c ON a.category_id = c.id
+            LEFT JOIN categories c ON a.category_id = c.id AND c.is_del = false
             WHERE a.is_del = false
             ORDER BY a.created_at DESC, a.id DESC
             LIMIT 5;

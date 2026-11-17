@@ -1,6 +1,6 @@
+using Dapper;
+using Logging.Application.Common;
 using Logging.Application.Logs.DTOs;
-using Logging.Infrastructure.Data;
-using Microsoft.EntityFrameworkCore;
 using SharedKernel.Application.CQRS;
 
 namespace Logging.Application.Logs.Queries;
@@ -10,38 +10,25 @@ namespace Logging.Application.Logs.Queries;
 /// </summary>
 public sealed class GetExceptionLogByIdQueryHandler : IQueryHandler<GetExceptionLogByIdQuery, ExceptionLogDto?>
 {
-    private readonly LoggingDbContext _dbContext;
+    private readonly ILoggingDbConnectionFactory _connectionFactory;
 
-    public GetExceptionLogByIdQueryHandler(LoggingDbContext dbContext)
+    public GetExceptionLogByIdQueryHandler(ILoggingDbConnectionFactory connectionFactory)
     {
-        _dbContext = dbContext;
+        _connectionFactory = connectionFactory;
     }
 
     public async Task<ExceptionLogDto?> Handle(GetExceptionLogByIdQuery request, CancellationToken cancellationToken)
     {
-        var x = await _dbContext.ExceptionLogs.AsNoTracking()
-            .FirstOrDefaultAsync(l => l.Id == request.Id, cancellationToken);
+        using var connection = _connectionFactory.CreateConnection();
 
-        if (x == null)
-        {
-            return null;
-        }
+        const string sql = """
+            SELECT id, exception_type, message, stack_trace, path, method, query_string,
+                   request_body, client_ip, user_id, username, trace_id, created_at
+            FROM exception_logs
+            WHERE id = @Id AND is_del = false
+            """;
 
-        return new ExceptionLogDto
-        {
-            Id = x.Id,
-            ExceptionType = x.ExceptionType,
-            Message = x.Message,
-            StackTrace = x.StackTrace,
-            Path = x.Path,
-            Method = x.Method,
-            QueryString = x.QueryString,
-            RequestBody = x.RequestBody,
-            ClientIp = x.ClientIp,
-            UserId = x.UserId,
-            Username = x.Username,
-            TraceId = x.TraceId,
-            CreatedAt = x.CreatedAt
-        };
+        var command = new CommandDefinition(sql, new { Id = request.Id }, cancellationToken: cancellationToken);
+        return await connection.QueryFirstOrDefaultAsync<ExceptionLogDto>(command);
     }
 }

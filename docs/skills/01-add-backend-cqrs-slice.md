@@ -12,8 +12,10 @@
    - 实体更新支持并发版本锁（`Version`），版本冲突抛出 `ConcurrencyException`（映射 HTTP 409）；
    - 敏感写操作添加 `[AuditLog(AuditModules.xxx, "操作名称")]` 无侵入审计；系统内部自动调用的无须审计操作标记 `[SkipAuditLog]`。
 2. **读操作 (Query)**：
-   - `Content` 模块：注入 `IContentDbConnectionFactory`，使用 **Dapper** 编写原生 SQL 直出 DTO，避免 EF Core 跟踪开销；
-   - `Identity` 模块：注入 `IdentityDbContext`，使用 **EF Core `AsNoTracking()`** 查询只读 DTO。
+   - 全部模块 QueryHandler 统一使用 **Dapper** 编写原生 SQL 直出 DTO；Command 的实体加载与后台维护任务仍可使用 EF Core；
+   - `Content` 模块注入 `IContentDbConnectionFactory`，`Identity` 模块注入 `IIdentityDbConnectionFactory`（跨切面授权读模型注入 `IIdentityReadStore`），`Logging` 模块注入 `ILoggingDbConnectionFactory`；
+   - Dapper SQL 不受 EF Core 全局软删除过滤器保护，必须显式处理软删除语义：默认补 `is_del = false`；若业务需要包含已删除数据（如唯一约束校验、审计），必须在 SQL 与测试中明确说明；
+   - 分页查询统一使用 `QueryMultipleAsync` 在一次往返内取回 `COUNT` 与数据页，禁止 `COUNT` + `SELECT` 两次往返。
 3. **入参验证 (Validation)**：
    - 必须为每一个 Command 编写对应的 FluentValidation 校验器 `AbstractValidator<TCommand>`；
    - 由 MediatR 全局管道 `ValidationBehavior` 自动统一拦截并返回 HTTP 400 规范报文。

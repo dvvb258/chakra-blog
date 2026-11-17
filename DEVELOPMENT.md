@@ -80,7 +80,7 @@ npm run dev
 在 Chakra 后端中，业务被纵向切分为自包含的功能切片（Vertical Slice），严格遵循 **CQRS 读写职责分离** 原则：
 
 * **写操作 (Command)**：面向领域实体（Domain Entity），通过 EF Core `DbContext` 写入，支持乐观并发锁 `Version` 与雪花 ID；
-* **读操作 (Query)**：只读查询，在 `Content` 模块注入 `IContentDbConnectionFactory` 使用 **Dapper** 编写高性能 SQL 直出 DTO；在 `Identity` 模块注入 `IdentityDbContext` 使用 **EF Core `AsNoTracking()`** 查询。
+* **读操作 (Query)**：全部模块的 QueryHandler 统一注入对应模块的 Dapper 连接工厂，使用 **原生 SQL** 直出 DTO；只有 Command 为完成领域写入而加载实体、以及日志清理等后台维护任务才使用 EF Core。
 
 ### 示例：如何添加一个“专栏订阅/收藏”切片？
 

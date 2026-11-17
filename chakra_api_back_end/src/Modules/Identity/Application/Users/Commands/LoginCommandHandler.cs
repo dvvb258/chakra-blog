@@ -16,6 +16,7 @@ namespace Identity.Application.Users.Commands;
 public sealed class LoginCommandHandler : ICommandHandler<LoginCommand, AuthTokenDto>
 {
     private readonly IdentityDbContext _dbContext;
+    private readonly IIdentityReadStore _readStore;
     private readonly IPasswordHasher<User> _passwordHasher;
     private readonly IJwtTokenService _jwtTokenService;
 
@@ -23,14 +24,17 @@ public sealed class LoginCommandHandler : ICommandHandler<LoginCommand, AuthToke
     /// Initializes a new instance of the <see cref="LoginCommandHandler"/> class.
     /// </summary>
     /// <param name="dbContext">身份认证数据库上下文</param>
+    /// <param name="readStore">Identity 读模型存储</param>
     /// <param name="passwordHasher">密码哈希器</param>
     /// <param name="jwtTokenService">JWT 服务</param>
     public LoginCommandHandler(
         IdentityDbContext dbContext,
+        IIdentityReadStore readStore,
         IPasswordHasher<User> passwordHasher,
         IJwtTokenService jwtTokenService)
     {
         _dbContext = dbContext;
+        _readStore = readStore;
         _passwordHasher = passwordHasher;
         _jwtTokenService = jwtTokenService;
     }
@@ -78,7 +82,7 @@ public sealed class LoginCommandHandler : ICommandHandler<LoginCommand, AuthToke
         _dbContext.RefreshTokens.Add(refreshToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
-        var (menus, permissions) = await _dbContext.GetUserMenusAndPermissionsAsync(user.Role, cancellationToken);
+        var (menus, permissions) = await _readStore.GetUserMenusAndPermissionsAsync(user.Role, cancellationToken);
 
         return new AuthTokenDto
         {

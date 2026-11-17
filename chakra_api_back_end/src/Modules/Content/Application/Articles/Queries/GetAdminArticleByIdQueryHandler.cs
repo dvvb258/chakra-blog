@@ -32,7 +32,7 @@ public sealed class GetAdminArticleByIdQueryHandler : IQueryHandler<GetAdminArti
                    c.name AS category_name,
                    a.author, a.reading_time, a.cover_color, a.cover_url, a.views, a.likes, a.series_id, a.is_pinned, a.status, a.created_by_user_id, a.created_at, a.updated_at, a.version
             FROM articles a
-            LEFT JOIN categories c ON a.category_id = c.id
+            LEFT JOIN categories c ON a.category_id = c.id AND c.is_del = false
             WHERE a.id = @Id AND a.is_del = false
             """;
 

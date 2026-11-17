@@ -47,6 +47,12 @@ public sealed class GetSeriesListQueryHandler : IQueryHandler<GetSeriesListQuery
             LIMIT @PageSize OFFSET @Offset
             """;
 
+        var batchSql = $"""
+            {countSql};
+
+            {dataSql};
+            """;
+
         var parameters = new
         {
             Keyword = $"%{request.Keyword}%",
@@ -55,11 +61,11 @@ public sealed class GetSeriesListQueryHandler : IQueryHandler<GetSeriesListQuery
             PageSize = request.PageSize
         };
 
-        var countCommand = new CommandDefinition(countSql, parameters, cancellationToken: cancellationToken);
-        var total = await connection.ExecuteScalarAsync<int>(countCommand);
+        using var multi = await connection.QueryMultipleAsync(
+            new CommandDefinition(batchSql, parameters, cancellationToken: cancellationToken));
 
-        var dataCommand = new CommandDefinition(dataSql, parameters, cancellationToken: cancellationToken);
-        var items = (await connection.QueryAsync<SeriesListItemDto>(dataCommand)).ToList();
+        var total = await multi.ReadFirstAsync<int>();
+        var items = (await multi.ReadAsync<SeriesListItemDto>()).ToList();
 
         return new PagedResult<SeriesListItemDto>
         {

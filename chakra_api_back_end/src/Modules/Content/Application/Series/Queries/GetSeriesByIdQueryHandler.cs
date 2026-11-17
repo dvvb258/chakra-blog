@@ -33,25 +33,33 @@ public sealed class GetSeriesByIdQueryHandler : IQueryHandler<GetSeriesByIdQuery
             WHERE id = @Id AND is_del = false
             """;
 
-        var seriesCommand = new CommandDefinition(seriesSql, new { Id = request.Id }, cancellationToken: cancellationToken);
-        var series = await connection.QueryFirstOrDefaultAsync<SeriesDetailDto>(seriesCommand);
-
-        if (series is null)
-            return null;
-
         const string articlesSql = """
             SELECT a.id, a.title, a.summary, a.tags,
                    a.category_id,
                    c.name AS category_name,
                    a.author, a.reading_time, a.cover_color, a.cover_url, a.views, a.likes, a.series_id, a.created_at, a.updated_at, a.version
             FROM articles a
-            LEFT JOIN categories c ON a.category_id = c.id
+            LEFT JOIN categories c ON a.category_id = c.id AND c.is_del = false
             WHERE a.series_id = @SeriesId AND a.is_del = false AND a.status = 1
             ORDER BY a.created_at ASC, a.id ASC
             """;
 
-        var articlesCommand = new CommandDefinition(articlesSql, new { SeriesId = request.Id }, cancellationToken: cancellationToken);
-        var articles = (await connection.QueryAsync<ArticleListItemDto>(articlesCommand)).ToList();
+        var batchSql = $"""
+            {seriesSql};
+
+            {articlesSql};
+            """;
+
+        var parameters = new { Id = request.Id, SeriesId = request.Id };
+        using var multi = await connection.QueryMultipleAsync(
+            new CommandDefinition(batchSql, parameters, cancellationToken: cancellationToken));
+
+        var series = await multi.ReadFirstOrDefaultAsync<SeriesDetailDto>();
+
+        if (series is null)
+            return null;
+
+        var articles = (await multi.ReadAsync<ArticleListItemDto>()).ToList();
 
         return series with { Articles = articles };
     }

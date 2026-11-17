@@ -1,6 +1,5 @@
+using Identity.Application.Common.Interfaces;
 using Identity.Application.Users.DTOs;
-using Identity.Infrastructure.Data;
-using Microsoft.EntityFrameworkCore;
 using SharedKernel.Application.CQRS;
 
 namespace Identity.Application.Users.Queries;
@@ -10,33 +9,17 @@ namespace Identity.Application.Users.Queries;
 /// </summary>
 public sealed class GetMenusQueryHandler : IQueryHandler<GetMenusQuery, List<MenuDto>>
 {
-    private readonly IdentityDbContext _dbContext;
+    private readonly IIdentityReadStore _readStore;
 
-    public GetMenusQueryHandler(IdentityDbContext dbContext)
+    public GetMenusQueryHandler(IIdentityReadStore readStore)
     {
-        _dbContext = dbContext;
+        _readStore = readStore;
     }
 
     public async Task<List<MenuDto>> Handle(GetMenusQuery request, CancellationToken cancellationToken)
     {
-        var menus = await _dbContext.Menus
-            .AsNoTracking()
-            .Where(m => !m.IsDeleted)
-            .OrderBy(m => m.Sort)
-            .Select(m => new MenuDto
-            {
-                Id = m.Id,
-                ParentId = m.ParentId,
-                Name = m.Name,
-                Path = m.Path,
-                PermissionCode = m.PermissionCode,
-                Icon = m.Icon,
-                Sort = m.Sort,
-                IsHidden = m.IsHidden,
-                Type = (int)m.Type,
-            })
-            .ToListAsync(cancellationToken);
+        var menus = await _readStore.GetActiveMenusAsync(cancellationToken);
 
-        return menus;
+        return menus.Select(m => m.ToDto()).ToList();
     }
 }

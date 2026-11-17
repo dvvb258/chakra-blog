@@ -1,6 +1,4 @@
 using Identity.Application.Common.Interfaces;
-using Identity.Infrastructure.Data;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace Identity.Infrastructure.Services;
@@ -11,17 +9,17 @@ namespace Identity.Infrastructure.Services;
 public sealed class UserAccessValidator : IUserAccessValidator
 {
     private static readonly TimeSpan CacheDuration = TimeSpan.FromSeconds(60);
-    private readonly IdentityDbContext _dbContext;
+    private readonly IIdentityReadStore _readStore;
     private readonly IMemoryCache _cache;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="UserAccessValidator"/> class.
     /// </summary>
-    /// <param name="dbContext">身份数据库上下文</param>
+    /// <param name="readStore">Identity 读模型存储</param>
     /// <param name="cache">内存缓存</param>
-    public UserAccessValidator(IdentityDbContext dbContext, IMemoryCache cache)
+    public UserAccessValidator(IIdentityReadStore readStore, IMemoryCache cache)
     {
-        _dbContext = dbContext;
+        _readStore = readStore;
         _cache = cache;
     }
 
@@ -41,13 +39,7 @@ public sealed class UserAccessValidator : IUserAccessValidator
             return isAllowed;
         }
 
-        isAllowed = await _dbContext.Users
-            .AsNoTracking()
-            .AnyAsync(
-                user => user.Id == userId &&
-                        user.IsActive &&
-                        user.Role.ToLower() == normalizedRole,
-                cancellationToken);
+        isAllowed = await _readStore.IsAccessAllowedAsync(userId, normalizedRole, cancellationToken);
 
         // 仅对有效鉴权结果进行 60 秒短效缓存（未通过的不缓存，以便状态恢复后能立即生效）
         if (isAllowed)

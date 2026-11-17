@@ -48,18 +48,22 @@ public static class DependencyInjection
                    .UseSnakeCaseNamingConvention();
         });
 
-        // 4. 注册 ASP.NET Core 原生密码哈希器
+        // 4. 注册 Dapper 连接工厂与读模型存储（QueryHandler/授权读路径走 Dapper，EF Core 负责领域写入）
+        services.AddSingleton<IIdentityDbConnectionFactory>(new IdentityDbConnectionFactory(connectionString));
+        services.AddScoped<IIdentityReadStore, DapperIdentityReadStore>();
+
+        // 5. 注册 ASP.NET Core 原生密码哈希器
         services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 
-        // 5. 注册 JWT 令牌签发服务
+        // 6. 注册 JWT 令牌签发服务
         services.AddScoped<IJwtTokenService, JwtTokenService>();
         services.AddScoped<IUserAccessValidator, UserAccessValidator>();
 
-        // 6. 注册动态 RBAC 权限验证器（依赖进程内缓存，避免每个请求多次查库）
+        // 7. 注册动态 RBAC 权限验证器（依赖进程内缓存，避免每个请求多次查库）
         services.AddMemoryCache();
         services.AddScoped<SharedKernel.Application.Interfaces.IPermissionChecker, PermissionChecker>();
 
-        // 7. 注册 GitHub OAuth 开放平台服务
+        // 8. 注册 GitHub OAuth 开放平台服务
         services.AddHttpClient<IGitHubOAuthService, GitHubOAuthService>();
 
         return services;

@@ -1,6 +1,6 @@
+using Dapper;
+using Logging.Application.Common;
 using Logging.Application.Logs.DTOs;
-using Logging.Infrastructure.Data;
-using Microsoft.EntityFrameworkCore;
 using SharedKernel.Application;
 using SharedKernel.Application.CQRS;
 
@@ -11,64 +11,76 @@ namespace Logging.Application.Logs.Queries;
 /// </summary>
 public sealed class GetExceptionLogsQueryHandler : IQueryHandler<GetExceptionLogsQuery, PagedResult<ExceptionLogDto>>
 {
-    private readonly LoggingDbContext _dbContext;
+    private readonly ILoggingDbConnectionFactory _connectionFactory;
 
-    public GetExceptionLogsQueryHandler(LoggingDbContext dbContext)
+    public GetExceptionLogsQueryHandler(ILoggingDbConnectionFactory connectionFactory)
     {
-        _dbContext = dbContext;
+        _connectionFactory = connectionFactory;
     }
 
     public async Task<PagedResult<ExceptionLogDto>> Handle(GetExceptionLogsQuery request, CancellationToken cancellationToken)
     {
-        var query = _dbContext.ExceptionLogs.AsNoTracking();
+        using var connection = _connectionFactory.CreateConnection();
+
+        var conditions = new List<string> { "is_del = false" };
 
         if (!string.IsNullOrWhiteSpace(request.Keyword))
         {
-            var kw = request.Keyword.Trim();
-            query = query.Where(x =>
-                x.ExceptionType.Contains(kw) ||
-                x.Message.Contains(kw) ||
-                x.Path.Contains(kw));
+            conditions.Add("(exception_type ILIKE @Keyword OR message ILIKE @Keyword OR path ILIKE @Keyword)");
         }
 
         if (!string.IsNullOrWhiteSpace(request.TraceId))
         {
-            query = query.Where(x => x.TraceId != null && x.TraceId.Contains(request.TraceId.Trim()));
+            conditions.Add("trace_id ILIKE @TraceId");
         }
 
         if (request.StartDate.HasValue)
         {
-            query = query.Where(x => x.CreatedAt >= request.StartDate.Value);
+            conditions.Add("created_at >= @StartDate");
         }
 
         if (request.EndDate.HasValue)
         {
-            query = query.Where(x => x.CreatedAt <= request.EndDate.Value);
+            conditions.Add("created_at <= @EndDate");
         }
 
-        var total = await query.CountAsync(cancellationToken);
+        var whereClause = "WHERE " + string.Join(" AND ", conditions);
 
-        var items = await query
-            .OrderByDescending(x => x.CreatedAt)
-            .Skip((request.PageIndex - 1) * request.PageSize)
-            .Take(request.PageSize)
-            .Select(x => new ExceptionLogDto
-            {
-                Id = x.Id,
-                ExceptionType = x.ExceptionType,
-                Message = x.Message,
-                StackTrace = x.StackTrace,
-                Path = x.Path,
-                Method = x.Method,
-                QueryString = x.QueryString,
-                RequestBody = x.RequestBody,
-                ClientIp = x.ClientIp,
-                UserId = x.UserId,
-                Username = x.Username,
-                TraceId = x.TraceId,
-                CreatedAt = x.CreatedAt
-            })
-            .ToListAsync(cancellationToken);
+        var countSql = $"""
+            SELECT COUNT(*)
+            FROM exception_logs
+            {whereClause}
+            """;
+        var dataSql = $"""
+            SELECT id, exception_type, message, stack_trace, path, method, query_string,
+                   request_body, client_ip, user_id, username, trace_id, created_at
+            FROM exception_logs
+            {whereClause}
+            ORDER BY created_at DESC, id DESC
+            LIMIT @PageSize OFFSET @Offset
+            """;
+
+        var batchSql = $"""
+            {countSql};
+
+            {dataSql};
+            """;
+
+        var parameters = new
+        {
+            Keyword = $"%{request.Keyword?.Trim()}%",
+            TraceId = $"%{request.TraceId?.Trim()}%",
+            request.StartDate,
+            request.EndDate,
+            Offset = (request.PageIndex - 1) * request.PageSize,
+            PageSize = request.PageSize,
+        };
+
+        using var multi = await connection.QueryMultipleAsync(
+            new CommandDefinition(batchSql, parameters, cancellationToken: cancellationToken));
+
+        var total = await multi.ReadFirstAsync<int>();
+        var items = (await multi.ReadAsync<ExceptionLogDto>()).ToList();
 
         return new PagedResult<ExceptionLogDto>
         {

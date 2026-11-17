@@ -52,9 +52,8 @@ public sealed class GetPublishedArticlesQueryHandler : IQueryHandler<GetPublishe
         };
 
         var countSql = $"""
-            SELECT COUNT(*) 
+            SELECT COUNT(*)
             FROM articles a
-            LEFT JOIN categories c ON a.category_id = c.id
             {whereClause}
             """;
         var dataSql = $"""
@@ -63,10 +62,16 @@ public sealed class GetPublishedArticlesQueryHandler : IQueryHandler<GetPublishe
                    c.name AS category_name,
                    a.author, a.reading_time, a.cover_color, a.cover_url, a.views, a.likes, a.series_id, a.is_pinned, a.created_at, a.updated_at, a.version
             FROM articles a
-            LEFT JOIN categories c ON a.category_id = c.id
+            LEFT JOIN categories c ON a.category_id = c.id AND c.is_del = false
             {whereClause}
             {orderClause}
             LIMIT @PageSize OFFSET @Offset
+            """;
+
+        var batchSql = $"""
+            {countSql};
+
+            {dataSql};
             """;
 
         var parameters = new
@@ -80,11 +85,11 @@ public sealed class GetPublishedArticlesQueryHandler : IQueryHandler<GetPublishe
             PageSize = request.PageSize
         };
 
-        var countCommand = new CommandDefinition(countSql, parameters, cancellationToken: cancellationToken);
-        var total = await connection.QueryFirstOrDefaultAsync<int>(countCommand);
+        using var multi = await connection.QueryMultipleAsync(
+            new CommandDefinition(batchSql, parameters, cancellationToken: cancellationToken));
 
-        var dataCommand = new CommandDefinition(dataSql, parameters, cancellationToken: cancellationToken);
-        var items = (await connection.QueryAsync<ArticleListItemDto>(dataCommand)).ToList();
+        var total = await multi.ReadFirstAsync<int>();
+        var items = (await multi.ReadAsync<ArticleListItemDto>()).ToList();
 
         return new PagedResult<ArticleListItemDto>
         {

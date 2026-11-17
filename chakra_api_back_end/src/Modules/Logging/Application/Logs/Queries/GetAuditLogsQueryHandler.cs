@@ -1,6 +1,6 @@
+using Dapper;
+using Logging.Application.Common;
 using Logging.Application.Logs.DTOs;
-using Logging.Infrastructure.Data;
-using Microsoft.EntityFrameworkCore;
 using SharedKernel.Application;
 using SharedKernel.Application.CQRS;
 
@@ -11,71 +11,88 @@ namespace Logging.Application.Logs.Queries;
 /// </summary>
 public sealed class GetAuditLogsQueryHandler : IQueryHandler<GetAuditLogsQuery, PagedResult<AuditLogDto>>
 {
-    private readonly LoggingDbContext _dbContext;
+    private readonly ILoggingDbConnectionFactory _connectionFactory;
 
-    public GetAuditLogsQueryHandler(LoggingDbContext dbContext)
+    public GetAuditLogsQueryHandler(ILoggingDbConnectionFactory connectionFactory)
     {
-        _dbContext = dbContext;
+        _connectionFactory = connectionFactory;
     }
 
     public async Task<PagedResult<AuditLogDto>> Handle(GetAuditLogsQuery request, CancellationToken cancellationToken)
     {
-        var query = _dbContext.AuditLogs.AsNoTracking();
+        using var connection = _connectionFactory.CreateConnection();
+
+        var conditions = new List<string> { "is_del = false" };
 
         if (!string.IsNullOrWhiteSpace(request.Module))
         {
-            query = query.Where(x => x.Module == request.Module.Trim());
+            conditions.Add("module = @Module");
         }
 
         if (!string.IsNullOrWhiteSpace(request.Username))
         {
-            query = query.Where(x => x.Username != null && x.Username.Contains(request.Username.Trim()));
+            conditions.Add("username ILIKE @Username");
         }
 
         if (request.IsSuccess.HasValue)
         {
-            query = query.Where(x => x.IsSuccess == request.IsSuccess.Value);
+            conditions.Add("is_success = @IsSuccess");
         }
 
         if (!string.IsNullOrWhiteSpace(request.TraceId))
         {
-            query = query.Where(x => x.TraceId != null && x.TraceId.Contains(request.TraceId.Trim()));
+            conditions.Add("trace_id ILIKE @TraceId");
         }
 
         if (request.StartDate.HasValue)
         {
-            query = query.Where(x => x.CreatedAt >= request.StartDate.Value);
+            conditions.Add("created_at >= @StartDate");
         }
 
         if (request.EndDate.HasValue)
         {
-            query = query.Where(x => x.CreatedAt <= request.EndDate.Value);
+            conditions.Add("created_at <= @EndDate");
         }
 
-        var total = await query.CountAsync(cancellationToken);
+        var whereClause = "WHERE " + string.Join(" AND ", conditions);
 
-        var items = await query
-            .OrderByDescending(x => x.CreatedAt)
-            .Skip((request.PageIndex - 1) * request.PageSize)
-            .Take(request.PageSize)
-            .Select(x => new AuditLogDto
-            {
-                Id = x.Id,
-                UserId = x.UserId,
-                Username = x.Username,
-                Module = x.Module,
-                Action = x.Action,
-                Method = x.Method,
-                Path = x.Path,
-                Parameters = x.Parameters,
-                ClientIp = x.ClientIp,
-                DurationMs = x.DurationMs,
-                IsSuccess = x.IsSuccess,
-                ErrorMessage = x.ErrorMessage,
-                TraceId = x.TraceId,
-                CreatedAt = x.CreatedAt
-            })
-            .ToListAsync(cancellationToken);
+        var countSql = $"""
+            SELECT COUNT(*)
+            FROM audit_logs
+            {whereClause}
+            """;
+        var dataSql = $"""
+            SELECT id, user_id, username, module, action, method, path, parameters,
+                   client_ip, duration_ms, is_success, error_message, trace_id, created_at
+            FROM audit_logs
+            {whereClause}
+            ORDER BY created_at DESC, id DESC
+            LIMIT @PageSize OFFSET @Offset
+            """;
+
+        var batchSql = $"""
+            {countSql};
+
+            {dataSql};
+            """;
+
+        var parameters = new
+        {
+            Module = request.Module?.Trim(),
+            Username = $"%{request.Username?.Trim()}%",
+            IsSuccess = request.IsSuccess,
+            TraceId = $"%{request.TraceId?.Trim()}%",
+            request.StartDate,
+            request.EndDate,
+            Offset = (request.PageIndex - 1) * request.PageSize,
+            PageSize = request.PageSize,
+        };
+
+        using var multi = await connection.QueryMultipleAsync(
+            new CommandDefinition(batchSql, parameters, cancellationToken: cancellationToken));
+
+        var total = await multi.ReadFirstAsync<int>();
+        var items = (await multi.ReadAsync<AuditLogDto>()).ToList();
 
         return new PagedResult<AuditLogDto>
         {

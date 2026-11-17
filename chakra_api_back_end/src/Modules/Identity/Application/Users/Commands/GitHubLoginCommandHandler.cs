@@ -17,6 +17,7 @@ namespace Identity.Application.Users.Commands;
 public sealed class GitHubLoginCommandHandler : ICommandHandler<GitHubLoginCommand, AuthTokenDto>
 {
     private readonly IdentityDbContext _dbContext;
+    private readonly IIdentityReadStore _readStore;
     private readonly IGitHubOAuthService _gitHubOAuthService;
     private readonly IJwtTokenService _jwtTokenService;
     private readonly ILogger<GitHubLoginCommandHandler> _logger;
@@ -25,16 +26,19 @@ public sealed class GitHubLoginCommandHandler : ICommandHandler<GitHubLoginComma
     /// Initializes a new instance of the <see cref="GitHubLoginCommandHandler"/> class.
     /// </summary>
     /// <param name="dbContext">身份数据库上下文</param>
+    /// <param name="readStore">Identity 读模型存储</param>
     /// <param name="gitHubOAuthService">GitHub 开放平台通信服务</param>
     /// <param name="jwtTokenService">JWT 令牌签发服务</param>
     /// <param name="logger">日志记录器</param>
     public GitHubLoginCommandHandler(
         IdentityDbContext dbContext,
+        IIdentityReadStore readStore,
         IGitHubOAuthService gitHubOAuthService,
         IJwtTokenService jwtTokenService,
         ILogger<GitHubLoginCommandHandler> logger)
     {
         _dbContext = dbContext;
+        _readStore = readStore;
         _gitHubOAuthService = gitHubOAuthService;
         _jwtTokenService = jwtTokenService;
         _logger = logger;
@@ -151,7 +155,7 @@ public sealed class GitHubLoginCommandHandler : ICommandHandler<GitHubLoginComma
         _dbContext.RefreshTokens.Add(refreshToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
-        var (menus, permissions) = await _dbContext.GetUserMenusAndPermissionsAsync(user.Role, cancellationToken);
+        var (menus, permissions) = await _readStore.GetUserMenusAndPermissionsAsync(user.Role, cancellationToken);
 
         return new AuthTokenDto
         {

@@ -10,6 +10,20 @@ jobs:
   backend-build:
     name: Build .NET 10 WebAPI
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -25,8 +39,10 @@ jobs:
       - name: Build Solution (Zero Warning & Zero Error)
         run: dotnet build chakra_api_back_end/Chakra.slnx --configuration Release --no-restore
 
-      - name: Run Unit Tests
+      - name: Run Unit & Integration Tests
         run: dotnet test chakra_api_back_end/Chakra.slnx --configuration Release --no-build
+        env:
+          CHAKRA_TEST_POSTGRES: Host=localhost;Port=5432;Username=postgres;Password=postgres;Database=postgres
 
   frontend-build:
     name: Build Front-ends (Next.js & Vite)

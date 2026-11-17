@@ -30,7 +30,7 @@ chakra-blog/
    - 前端展示端与管理端必须通过 `npm run build`（包含严格的类型检查与生产构建打包）。
 3. **垂直切片模块边界隔离**：
    - 后端划分为 `Identity`、`Content`、`Logging` 三大模块，模块间保持物理和逻辑解耦，禁止跨切片任意直接引用私有实体；
-   - 写操作（Command）走 EF Core 领域实体；读操作（Query）在 Content 模块走 Dapper 高性能原生 SQL 直出 DTO，在 Identity 模块走 EF Core `AsNoTracking()`。
+   - 写操作（Command）走 EF Core 领域实体；读操作（QueryHandler）在全部模块（Content / Identity / Logging）统一走 Dapper 原生 SQL 直出 DTO，QueryHandler 中禁用 EF Core `AsNoTracking()` 读模型；Command 为完成领域写入而加载实体、后台维护任务不在此约束内。
 4. **统一 API 契约与数据库映射标准**：
    - 控制器 Action 统一返回 `ApiResult<T>`，路径小写连字符（如 `/api/auth/my-menus`）；
    - 数据库使用 PostgreSQL 自动蛇形列名映射（`UseSnakeCaseNamingConvention()`），表全小写复数下划线。

@@ -1,12 +1,9 @@
 using FluentAssertions;
 using Identity.Application.Common;
-using Identity.Domain.Entities;
+using Identity.Application.Common.Interfaces;
+using Identity.Application.Common.Models;
 using Identity.Domain.Enums;
-using Identity.Infrastructure.Data;
 using Identity.Infrastructure.Services;
-using MediatR;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Caching.Memory;
 using Xunit;
 
@@ -14,185 +11,151 @@ namespace Chakra.Tests.Unit;
 
 public class PermissionCheckerCacheTests
 {
-    private sealed class FakePublisher : IPublisher
+    private sealed class FakeReadStore : IIdentityReadStore
     {
-        public Task Publish(object notification, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public HashSet<string> GrantedPermissions { get; } = new(StringComparer.OrdinalIgnoreCase);
 
-        public Task Publish<TNotification>(TNotification notification, CancellationToken cancellationToken = default)
-            where TNotification : INotification => Task.CompletedTask;
+        public List<MenuRow> ActiveMenus { get; } = [];
+
+        public Dictionary<string, List<MenuRow>> RoleMenus { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+        public bool AccessAllowed { get; set; }
+
+        public string? UserRole { get; set; }
+
+        public int PermissionLookups { get; private set; }
+
+        public Task<bool> HasPermissionAsync(string roleCode, string permissionCode, CancellationToken cancellationToken = default)
+        {
+            PermissionLookups++;
+            return Task.FromResult(GrantedPermissions.Contains(permissionCode));
+        }
+
+        public Task<bool> IsAccessAllowedAsync(long userId, string roleCode, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(AccessAllowed);
+        }
+
+        public Task<string?> GetActiveUserRoleAsync(long userId, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(UserRole);
+        }
+
+        public Task<IReadOnlyList<MenuRow>> GetActiveMenusAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyList<MenuRow>>(ActiveMenus);
+        }
+
+        public Task<IReadOnlyList<MenuRow>> GetMenusByRoleCodeAsync(string roleCode, CancellationToken cancellationToken = default)
+        {
+            IReadOnlyList<MenuRow> menus = RoleMenus.TryGetValue(roleCode, out var value) ? value : [];
+            return Task.FromResult(menus);
+        }
     }
-
-    private static IdentityDbContext CreateInMemoryDbContext()
-    {
-        var options = new DbContextOptionsBuilder<IdentityDbContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
-            .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
-            .Options;
-
-        return new IdentityDbContext(options, new FakePublisher());
-    }
-
-    private static PermissionChecker CreateChecker(IdentityDbContext db) =>
-        new(db, new MemoryCache(new MemoryCacheOptions()));
 
     [Fact]
-    public async Task HasPermissionAsync_ShouldGrant_WhenRoleOwnsLeafMenuPermission()
+    public async Task HasPermissionAsync_ShouldCacheStoreLookup_WithinTtl()
     {
-        await using var db = CreateInMemoryDbContext();
-        var role = new Role("editor", "编辑");
-        var menu = new Menu("文章管理", "/articles", "article:manage");
+        var store = new FakeReadStore();
+        store.GrantedPermissions.Add("article:manage");
+        using var cache = new MemoryCache(new MemoryCacheOptions());
+        var checker = new PermissionChecker(store, cache);
 
-        db.Roles.Add(role);
-        db.Menus.Add(menu);
-        await db.SaveChangesAsync();
-
-        db.RoleMenus.Add(new RoleMenu(role.Id, menu.Id));
-        await db.SaveChangesAsync();
-
-        var checker = CreateChecker(db);
-
+        (await checker.HasPermissionAsync("editor", "article:manage")).Should().BeTrue();
         (await checker.HasPermissionAsync("Editor", "article:manage")).Should().BeTrue();
+
+        store.PermissionLookups.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task HasPermissionAsync_ShouldReturnFalse_WhenStoreDenies()
+    {
+        var store = new FakeReadStore();
+        using var cache = new MemoryCache(new MemoryCacheOptions());
+        var checker = new PermissionChecker(store, cache);
+
         (await checker.HasPermissionAsync("editor", "series:manage")).Should().BeFalse();
     }
 
     [Fact]
-    public async Task HasPermissionAsync_ShouldGrant_WhenRoleOwnsParentMenuWithChildren()
+    public async Task HasPermissionAsync_ShouldAlwaysGrantAdmin_WithoutStoreLookup()
     {
-        await using var db = CreateInMemoryDbContext();
-        var role = new Role("editor", "编辑");
-        var parentMenu = new Menu("文章管理", "/articles", "article:manage", type: MenuType.Menu);
-        var childButton = new Menu("新建文章", "", "content:article:create", parentId: parentMenu.Id, type: MenuType.Button);
-
-        db.Roles.Add(role);
-        db.Menus.AddRange(parentMenu, childButton);
-        await db.SaveChangesAsync();
-
-        db.RoleMenus.AddRange(
-            new RoleMenu(role.Id, parentMenu.Id),
-            new RoleMenu(role.Id, childButton.Id));
-        await db.SaveChangesAsync();
-
-        var checker = CreateChecker(db);
-
-        // 父级菜单和子级按钮在分配给角色后均应鉴权通过
-        (await checker.HasPermissionAsync("Editor", "article:manage")).Should().BeTrue();
-        (await checker.HasPermissionAsync("editor", "content:article:create")).Should().BeTrue();
-        (await checker.HasPermissionAsync("editor", "content:article:delete")).Should().BeFalse();
-    }
-
-    [Fact]
-    public async Task GetUserMenusAndPermissionsAsync_ShouldReturnAuthorizedMenuPathsAndPermissions_IncludingParentMenus()
-    {
-        await using var db = CreateInMemoryDbContext();
-        var role = new Role("custom_editor", "自定义编辑");
-        var parentMenu = new Menu("文章管理", "/articles", "article:manage", type: MenuType.Menu);
-        var childButton = new Menu("新建文章", "", "content:article:create", parentId: parentMenu.Id, type: MenuType.Button);
-
-        db.Roles.Add(role);
-        db.Menus.AddRange(parentMenu, childButton);
-        await db.SaveChangesAsync();
-
-        db.RoleMenus.AddRange(
-            new RoleMenu(role.Id, parentMenu.Id),
-            new RoleMenu(role.Id, childButton.Id));
-        await db.SaveChangesAsync();
-
-        var (menus, permissions) = await db.GetUserMenusAndPermissionsAsync("custom_editor");
-
-        menus.Should().Contain("/articles");
-        permissions.Should().Contain("article:manage");
-        permissions.Should().Contain("content:article:create");
-    }
-
-    [Fact]
-    public async Task HasPermissionAsync_ShouldAlwaysGrantAdmin_WithoutDatabaseLookup()
-    {
-        await using var db = CreateInMemoryDbContext();
-        var checker = CreateChecker(db);
+        var store = new FakeReadStore();
+        using var cache = new MemoryCache(new MemoryCacheOptions());
+        var checker = new PermissionChecker(store, cache);
 
         (await checker.HasPermissionAsync("Admin", "any:permission")).Should().BeTrue();
-    }
-
-    [Fact]
-    public async Task HasPermissionAsync_ShouldServeFromCache_WithinTtl()
-    {
-        await using var db = CreateInMemoryDbContext();
-        var role = new Role("editor", "编辑");
-        var menu = new Menu("文章管理", "/articles", "article:manage");
-
-        db.Roles.Add(role);
-        db.Menus.Add(menu);
-        await db.SaveChangesAsync();
-
-        var roleMenu = new RoleMenu(role.Id, menu.Id);
-        db.RoleMenus.Add(roleMenu);
-        await db.SaveChangesAsync();
-
-        var checker = CreateChecker(db);
-        (await checker.HasPermissionAsync("editor", "article:manage")).Should().BeTrue();
-
-        // 撤销授权后，缓存未过期前仍返回缓存结果（验证短 TTL 缓存确实生效）
-        db.RoleMenus.Remove(roleMenu);
-        await db.SaveChangesAsync();
-
-        (await checker.HasPermissionAsync("editor", "article:manage")).Should().BeTrue();
+        store.PermissionLookups.Should().Be(0);
     }
 
     [Fact]
     public async Task HasPermissionAsync_ShouldRejectEmptyRoleOrPermission()
     {
-        await using var db = CreateInMemoryDbContext();
-        var checker = CreateChecker(db);
+        var store = new FakeReadStore();
+        using var cache = new MemoryCache(new MemoryCacheOptions());
+        var checker = new PermissionChecker(store, cache);
 
         (await checker.HasPermissionAsync(string.Empty, "article:manage")).Should().BeFalse();
         (await checker.HasPermissionAsync("editor", " ")).Should().BeFalse();
+        store.PermissionLookups.Should().Be(0);
     }
 
     [Fact]
-    public async Task UserAccessValidator_ShouldReturnTrueAndCache_WhenUserIsActiveAndRoleMatches()
+    public async Task UserAccessValidator_ShouldReturnTrueAndCache_WhenStoreAllows()
     {
-        await using var db = CreateInMemoryDbContext();
+        var store = new FakeReadStore { AccessAllowed = true };
         using var cache = new MemoryCache(new MemoryCacheOptions());
+        var validator = new UserAccessValidator(store, cache);
 
-        var user = new User("testuser", "测试用户", "Editor");
-        db.Users.Add(user);
-        await db.SaveChangesAsync();
+        (await validator.IsAccessAllowedAsync(1001, "Editor")).Should().BeTrue();
 
-        var validator = new UserAccessValidator(db, cache);
-
-        // 第一次调用：查库并缓存
-        var allowed = await validator.IsAccessAllowedAsync(user.Id, "Editor");
-        allowed.Should().BeTrue();
-
-        // 此时从数据库删除该用户，但在 60 秒缓存期内依然返回 true，证明命中缓存避免查库
-        db.Users.Remove(user);
-        await db.SaveChangesAsync();
-
-        var cachedAllowed = await validator.IsAccessAllowedAsync(user.Id, "Editor");
-        cachedAllowed.Should().BeTrue();
+        // 存储层状态变化后，缓存未过期前仍返回缓存结果
+        store.AccessAllowed = false;
+        (await validator.IsAccessAllowedAsync(1001, "Editor")).Should().BeTrue();
     }
 
     [Fact]
-    public async Task UserAccessValidator_ShouldReturnFalse_WhenUserInactiveOrRoleMismatch()
+    public async Task UserAccessValidator_ShouldReturnFalse_WhenStoreDeniesOrArgumentsInvalid()
     {
-        await using var db = CreateInMemoryDbContext();
+        var store = new FakeReadStore { AccessAllowed = false };
         using var cache = new MemoryCache(new MemoryCacheOptions());
+        var validator = new UserAccessValidator(store, cache);
 
-        var user = new User("inactive_user", "未激活用户", "Editor");
-        user.Deactivate();
-        db.Users.Add(user);
-        await db.SaveChangesAsync();
-
-        var validator = new UserAccessValidator(db, cache);
-
-        // 停用用户应当被拒绝
-        (await validator.IsAccessAllowedAsync(user.Id, "Editor")).Should().BeFalse();
-
-        // 角色不匹配应当被拒绝
-        (await validator.IsAccessAllowedAsync(user.Id, "Admin")).Should().BeFalse();
-
-        // 非法入参应当被拒绝
+        (await validator.IsAccessAllowedAsync(1001, "Editor")).Should().BeFalse();
         (await validator.IsAccessAllowedAsync(0, "Editor")).Should().BeFalse();
-        (await validator.IsAccessAllowedAsync(user.Id, "  ")).Should().BeFalse();
+        (await validator.IsAccessAllowedAsync(1001, "  ")).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task GetUserMenusAndPermissionsAsync_ShouldExcludeButtonsFromMenus_ButKeepTheirPermissions()
+    {
+        var store = new FakeReadStore();
+        store.RoleMenus["custom_editor"] =
+        [
+            new MenuRow { Id = 1, Name = "文章管理", Path = "/articles", PermissionCode = "article:manage", Sort = 1, Type = (int)MenuType.Menu },
+            new MenuRow { Id = 2, Name = "新建文章", Path = string.Empty, PermissionCode = "content:article:create", Sort = 2, Type = (int)MenuType.Button },
+        ];
+
+        var (menus, permissions) = await store.GetUserMenusAndPermissionsAsync("custom_editor");
+
+        menus.Should().ContainSingle().Which.Should().Be("/articles");
+        permissions.Should().Contain("article:manage");
+        permissions.Should().Contain("content:article:create");
+    }
+
+    [Fact]
+    public async Task GetUserMenusAndPermissionsAsync_ShouldReturnAllMenus_ForAdmin()
+    {
+        var store = new FakeReadStore();
+        store.ActiveMenus.AddRange(
+        [
+            new MenuRow { Id = 1, Name = "文章管理", Path = "/articles", PermissionCode = "article:manage", Sort = 1, Type = (int)MenuType.Menu },
+            new MenuRow { Id = 2, Name = "系统设置", Path = "/settings", PermissionCode = "settings:manage", Sort = 2, Type = (int)MenuType.Menu },
+        ]);
+
+        var (menus, permissions) = await store.GetUserMenusAndPermissionsAsync("Admin");
+
+        menus.Should().BeEquivalentTo(new[] { "/articles", "/settings" });
+        permissions.Should().BeEquivalentTo(new[] { "article:manage", "settings:manage" });
     }
 }

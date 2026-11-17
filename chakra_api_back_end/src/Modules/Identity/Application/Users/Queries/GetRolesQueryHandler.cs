@@ -1,6 +1,6 @@
+using Dapper;
+using Identity.Application.Common;
 using Identity.Application.Users.DTOs;
-using Identity.Infrastructure.Data;
-using Microsoft.EntityFrameworkCore;
 using SharedKernel.Application.CQRS;
 using SharedKernel.Constants;
 
@@ -11,36 +11,43 @@ namespace Identity.Application.Users.Queries;
 /// </summary>
 public sealed class GetRolesQueryHandler : IQueryHandler<GetRolesQuery, List<RoleDto>>
 {
-    private readonly IdentityDbContext _dbContext;
+    private readonly IIdentityDbConnectionFactory _connectionFactory;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GetRolesQueryHandler"/> class.
     /// </summary>
-    /// <param name="dbContext">身份认证数据库上下文</param>
-    public GetRolesQueryHandler(IdentityDbContext dbContext)
+    /// <param name="connectionFactory">数据库连接工厂</param>
+    public GetRolesQueryHandler(IIdentityDbConnectionFactory connectionFactory)
     {
-        _dbContext = dbContext;
+        _connectionFactory = connectionFactory;
     }
 
     /// <inheritdoc />
     public async Task<List<RoleDto>> Handle(GetRolesQuery request, CancellationToken cancellationToken)
     {
-        var roles = await _dbContext.Roles
-            .AsNoTracking()
-            .Where(r => !r.IsDeleted)
-            .OrderBy(r => r.Id)
-            .ToListAsync(cancellationToken);
+        using var connection = _connectionFactory.CreateConnection();
 
-        var roleMenus = await _dbContext.RoleMenus
-            .AsNoTracking()
-            .Where(rm => !rm.IsDeleted)
-            .ToListAsync(cancellationToken);
+        const string batchSql = """
+            SELECT id, code, name, description, is_system
+            FROM roles
+            WHERE is_del = false
+            ORDER BY id ASC;
 
-        var allMenus = await _dbContext.Menus
-            .AsNoTracking()
-            .Where(m => !m.IsDeleted)
-            .Select(m => m.Id)
-            .ToListAsync(cancellationToken);
+            SELECT role_id, menu_id
+            FROM role_menus
+            WHERE is_del = false;
+
+            SELECT id
+            FROM menus
+            WHERE is_del = false;
+            """;
+
+        using var multi = await connection.QueryMultipleAsync(
+            new CommandDefinition(batchSql, cancellationToken: cancellationToken));
+
+        var roles = (await multi.ReadAsync<RoleDto>()).ToList();
+        var roleMenus = (await multi.ReadAsync<RoleMenuRow>()).ToList();
+        var allMenus = (await multi.ReadAsync<long>()).ToList();
 
         var result = roles.Select(r =>
         {
@@ -68,5 +75,11 @@ public sealed class GetRolesQueryHandler : IQueryHandler<GetRolesQuery, List<Rol
         }).ToList();
 
         return result;
+    }
+
+    private sealed record RoleMenuRow
+    {
+        public long RoleId { get; init; }
+        public long MenuId { get; init; }
     }
 }

@@ -1,6 +1,6 @@
+using Dapper;
+using Identity.Application.Common;
 using Identity.Application.Users.DTOs;
-using Identity.Infrastructure.Data;
-using Microsoft.EntityFrameworkCore;
 using SharedKernel.Application;
 using SharedKernel.Application.CQRS;
 
@@ -11,59 +11,76 @@ namespace Identity.Application.Users.Queries;
 /// </summary>
 public sealed class GetUsersQueryHandler : IQueryHandler<GetUsersQuery, PagedResult<UserListItemDto>>
 {
-    private readonly IdentityDbContext _dbContext;
+    private readonly IIdentityDbConnectionFactory _connectionFactory;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GetUsersQueryHandler"/> class.
     /// </summary>
-    /// <param name="dbContext">身份认证数据库上下文</param>
-    public GetUsersQueryHandler(IdentityDbContext dbContext)
+    /// <param name="connectionFactory">数据库连接工厂</param>
+    public GetUsersQueryHandler(IIdentityDbConnectionFactory connectionFactory)
     {
-        _dbContext = dbContext;
+        _connectionFactory = connectionFactory;
     }
 
     /// <inheritdoc />
     public async Task<PagedResult<UserListItemDto>> Handle(GetUsersQuery request, CancellationToken cancellationToken)
     {
-        var query = _dbContext.Users.AsNoTracking();
+        using var connection = _connectionFactory.CreateConnection();
+
+        var conditions = new List<string> { "is_del = false" };
 
         if (!string.IsNullOrWhiteSpace(request.Keyword))
         {
-            var kw = request.Keyword.Trim();
-            query = query.Where(u => u.Username.Contains(kw) || u.Nickname.Contains(kw) || (u.Email != null && u.Email.Contains(kw)));
+            conditions.Add("(username ILIKE @Keyword OR nickname ILIKE @Keyword OR email ILIKE @Keyword)");
         }
 
         if (!string.IsNullOrWhiteSpace(request.Role))
         {
-            query = query.Where(u => u.Role == request.Role.Trim());
+            conditions.Add("role = @Role");
         }
 
         if (request.IsActive.HasValue)
         {
-            query = query.Where(u => u.IsActive == request.IsActive.Value);
+            conditions.Add("is_active = @IsActive");
         }
 
-        var total = await query.CountAsync(cancellationToken);
+        var whereClause = "WHERE " + string.Join(" AND ", conditions);
 
-        var items = await query
-            .OrderByDescending(u => u.CreatedAt)
-            .Skip((request.PageIndex - 1) * request.PageSize)
-            .Take(request.PageSize)
-            .Select(u => new UserListItemDto
-            {
-                Id = u.Id,
-                Username = u.Username,
-                Nickname = u.Nickname,
-                Email = u.Email,
-                AvatarUrl = u.AvatarUrl,
-                Role = u.Role,
-                IsActive = u.IsActive,
-                HasPassword = !string.IsNullOrEmpty(u.PasswordHash),
-                GithubId = u.GithubId,
-                LastLoginAt = u.LastLoginAt,
-                CreatedAt = u.CreatedAt
-            })
-            .ToListAsync(cancellationToken);
+        var countSql = $"""
+            SELECT COUNT(*)
+            FROM users
+            {whereClause}
+            """;
+        var dataSql = $"""
+            SELECT id, username, nickname, email, avatar_url, role, is_active,
+                   (password_hash IS NOT NULL AND password_hash <> '') AS has_password,
+                   github_id, last_login_at, created_at
+            FROM users
+            {whereClause}
+            ORDER BY created_at DESC, id DESC
+            LIMIT @PageSize OFFSET @Offset
+            """;
+
+        var batchSql = $"""
+            {countSql};
+
+            {dataSql};
+            """;
+
+        var parameters = new
+        {
+            Keyword = $"%{request.Keyword}%",
+            Role = request.Role?.Trim(),
+            IsActive = request.IsActive,
+            Offset = (request.PageIndex - 1) * request.PageSize,
+            PageSize = request.PageSize,
+        };
+
+        using var multi = await connection.QueryMultipleAsync(
+            new CommandDefinition(batchSql, parameters, cancellationToken: cancellationToken));
+
+        var total = await multi.ReadFirstAsync<int>();
+        var items = (await multi.ReadAsync<UserListItemDto>()).ToList();
 
         return new PagedResult<UserListItemDto>
         {

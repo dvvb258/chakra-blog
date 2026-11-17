@@ -1,3 +1,4 @@
+using Logging.Application.Common;
 using Logging.Infrastructure.Data;
 using Logging.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
@@ -35,6 +36,9 @@ public static class DependencyInjection
             options.UseNpgsql(connectionString)
                    .UseSnakeCaseNamingConvention();
         });
+
+        // 注册 Dapper 连接工厂（QueryHandler 读取走 Dapper，EF Core 负责日志写入与后台清理）
+        services.AddSingleton<ILoggingDbConnectionFactory>(new LoggingDbConnectionFactory(connectionString));
 
         // 注册内存通道队列（单例）与后台批量落盘服务
         services.AddSingleton<IAuditLogQueue, AuditLogQueue>();

@@ -50,6 +50,7 @@ public static class DependencyInjection
 
         // 注册 Dapper 连接工厂（读操作）
         services.AddSingleton<IContentDbConnectionFactory>(new NpgsqlConnectionFactory(connectionString));
+        services.AddScoped<IArticleGenerationReadStore, DapperArticleGenerationReadStore>();
 
         // 注册文章生成服务与定时任务
         services.AddScoped<IArticleGenerationService, ArticleGenerationService>();

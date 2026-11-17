@@ -15,18 +15,22 @@ namespace Identity.Application.Users.Commands;
 public sealed class RefreshTokenCommandHandler : ICommandHandler<RefreshTokenCommand, AuthTokenDto>
 {
     private readonly IdentityDbContext _dbContext;
+    private readonly IIdentityReadStore _readStore;
     private readonly IJwtTokenService _jwtTokenService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="RefreshTokenCommandHandler"/> class.
     /// </summary>
     /// <param name="dbContext">身份认证数据库上下文</param>
+    /// <param name="readStore">Identity 读模型存储</param>
     /// <param name="jwtTokenService">JWT 服务</param>
     public RefreshTokenCommandHandler(
         IdentityDbContext dbContext,
+        IIdentityReadStore readStore,
         IJwtTokenService jwtTokenService)
     {
         _dbContext = dbContext;
+        _readStore = readStore;
         _jwtTokenService = jwtTokenService;
     }
 
@@ -92,7 +96,7 @@ public sealed class RefreshTokenCommandHandler : ICommandHandler<RefreshTokenCom
         // 4. 生成新 AccessToken
         var newAccessToken = _jwtTokenService.GenerateAccessToken(user);
 
-        var (menus, permissions) = await _dbContext.GetUserMenusAndPermissionsAsync(user.Role, cancellationToken);
+        var (menus, permissions) = await _readStore.GetUserMenusAndPermissionsAsync(user.Role, cancellationToken);
 
         return new AuthTokenDto
         {

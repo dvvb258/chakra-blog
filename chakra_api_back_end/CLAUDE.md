@@ -122,8 +122,10 @@ chakra_api_back_end/
   - 采用 **`EFCore.NamingConventions` (`UseSnakeCaseNamingConvention()`)** 自动蛇形列名映射。
   - 全局约定雪花 ID（`ValueGeneratedNever()`）与软删除列（`is_del`）。
 - **读操作 (Query)**：
-  - `Content` 模块 QueryHandler 中直接注入 `IContentDbConnectionFactory`，使用 **Dapper** 执行 SQL 查询直出 DTO；
-  - `Identity` 模块 QueryHandler 中直接注入 `IdentityDbContext`，使用 **EF Core `AsNoTracking()`** 执行只读查询直出 DTO。
+  - 全部模块 QueryHandler 统一使用 **Dapper** 执行 SQL 查询直出 DTO，QueryHandler 中不再使用 EF Core 读模型；
+  - `Content` 模块注入 `IContentDbConnectionFactory`，`Identity` 模块注入 `IIdentityDbConnectionFactory`（授权读模型注入 `IIdentityReadStore`），`Logging` 模块注入 `ILoggingDbConnectionFactory`；
+  - Dapper SQL 不受 EF Core 全局软删除过滤器保护，必须显式处理软删除语义：默认补 `is_del = false`；若业务需要包含已删除数据（如唯一约束校验、审计），必须在 SQL 与测试中明确说明。分页查询使用 `QueryMultipleAsync` 单次往返。
+  - Command 为完成领域写入而加载实体、日志清理等后台维护任务仍可使用 EF Core，不属于 QueryHandler 读路径。
 
 ### 2. 领域模型与实体自洽
 - 实体继承自 `SharedKernel.Domain.Entity`（包含 `Id`, `CreatedAt`, `UpdatedAt`, `Version`, `IsDeleted`, `DeletedAt`）。
