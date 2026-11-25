@@ -10,62 +10,120 @@ interface ArticleInteractionsProps {
   title?: string
 }
 
+function normalizeLikeCount(value: unknown): number {
+  const num = Number(value)
+  return Number.isFinite(num) && num >= 0 ? Math.floor(num) : 0
+}
+
+function readStorage(storage: Storage, key: string): string | null {
+  try {
+    return storage.getItem(key)
+  } catch {
+    return null
+  }
+}
+
+function writeStorage(storage: Storage, key: string, value: string): void {
+  try {
+    storage.setItem(key, value)
+  } catch {
+    // 隐私模式或禁用本地存储时静默降级
+  }
+}
+
+function removeStorage(storage: Storage, key: string): void {
+  try {
+    storage.removeItem(key)
+  } catch {
+    // 隐私模式或禁用本地存储时静默降级
+  }
+}
+
 export default function ArticleInteractions({
   articleId,
   initialLikes = 0,
   title,
 }: ArticleInteractionsProps) {
-  const [likes, setLikes] = useState<number>(initialLikes)
+  const safeInitialLikes = normalizeLikeCount(initialLikes)
+  const [likes, setLikes] = useState<number>(safeInitialLikes)
   const [hasLiked, setHasLiked] = useState<boolean>(false)
   const [copied, setCopied] = useState<boolean>(false)
+  const [likeError, setLikeError] = useState<string | null>(null)
 
-  // 记录持久化/已上报给服务端的基准点赞状态，用于 500ms 防抖合并对比
+  // 记录初始化/服务端基准点赞状态，用于 500ms 防抖合并及失败回滚
+  const initialLikedRef = useRef<boolean>(false)
   const serverLikedRef = useRef<boolean>(false)
+  const interactionSeqRef = useRef<number>(0)
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const mountedRef = useRef<boolean>(true)
 
-  // 阅读量上报与点赞记忆恢复
+  const computeDisplayLikes = (targetLiked: boolean): number => {
+    const delta = (targetLiked ? 1 : 0) - (initialLikedRef.current ? 1 : 0)
+    return Math.max(0, safeInitialLikes + delta)
+  }
+
+  // 阅读量上报与点赞记忆恢复（articleId 或 initialLikes 变化时重置本地基准）
   useEffect(() => {
+    setLikes(safeInitialLikes)
+    setLikeError(null)
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current)
+      debounceTimerRef.current = null
+    }
+
     if (!articleId) return
 
     const viewKey = `viewed_art_${articleId}`
-    if (!sessionStorage.getItem(viewKey)) {
-      sessionStorage.setItem(viewKey, 'pending')
+    if (!readStorage(window.sessionStorage, viewKey)) {
+      writeStorage(window.sessionStorage, viewKey, 'pending')
       void recordArticleView(articleId)
-        .then(() => sessionStorage.setItem(viewKey, '1'))
+        .then(() => writeStorage(window.sessionStorage, viewKey, '1'))
         .catch((error: unknown) => {
-          sessionStorage.removeItem(viewKey)
+          removeStorage(window.sessionStorage, viewKey)
           console.error('阅读量上报失败', error)
         })
     }
 
     const likeKey = `liked_art_${articleId}`
-    const stored = localStorage.getItem(likeKey) === 'true'
-    setHasLiked(stored)
+    const stored = readStorage(window.localStorage, likeKey) === 'true'
+    initialLikedRef.current = stored
     serverLikedRef.current = stored
-  }, [articleId])
+    interactionSeqRef.current = 0
+    setHasLiked(stored)
+  }, [articleId, safeInitialLikes])
 
-  // 组件卸载时清理定时器
+  // 组件卸载时清理定时器与挂载标记
   useEffect(() => {
+    mountedRef.current = true
     return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current)
-      }
+      mountedRef.current = false
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current)
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current)
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current)
     }
   }, [])
+
+  const syncLikeStorage = (likeKey: string, liked: boolean) => {
+    if (liked) {
+      writeStorage(window.localStorage, likeKey, 'true')
+    } else {
+      removeStorage(window.localStorage, likeKey)
+    }
+  }
 
   const handleLike = () => {
     if (!articleId) return
 
     const nextState = !hasLiked
+    const seq = ++interactionSeqRef.current
     setHasLiked(nextState)
-    setLikes((prev) => (nextState ? prev + 1 : Math.max(0, prev - 1)))
+    setLikes(computeDisplayLikes(nextState))
+    setLikeError(null)
 
     const likeKey = `liked_art_${articleId}`
-    if (nextState) {
-      localStorage.setItem(likeKey, 'true')
-    } else {
-      localStorage.removeItem(likeKey)
-    }
+    syncLikeStorage(likeKey, nextState)
 
     // 短视频同款防抖合并：清除前一次未触发的请求
     if (debounceTimerRef.current) {
@@ -75,25 +133,50 @@ export default function ArticleInteractions({
     // 500ms 内用户若再次点击（如误触立刻取消，或连续狂点），在本地相抵消，不发送任何无意义请求
     debounceTimerRef.current = setTimeout(() => {
       // 只有最终状态与服务端已知状态不一致时，才发送一次网络请求
-      if (nextState !== serverLikedRef.current) {
-        const action = nextState ? likeArticle(articleId) : unlikeArticle(articleId)
-        action
-          .then(() => {
-            serverLikedRef.current = nextState
-          })
-          .catch((err: unknown) => {
-            console.error('点赞/取消点赞同步失败', err)
-          })
+      if (nextState === serverLikedRef.current) {
+        return
       }
+
+      const action = nextState ? likeArticle(articleId) : unlikeArticle(articleId)
+      action
+        .then(() => {
+          serverLikedRef.current = nextState
+        })
+        .catch((err: unknown) => {
+          console.error('点赞/取消点赞同步失败', err)
+          if (!mountedRef.current) return
+
+          // 仅当本次请求之后没有更新的用户交互时执行回滚，避免覆盖最新操作
+          if (interactionSeqRef.current === seq) {
+            const rollbackState = serverLikedRef.current
+            setHasLiked(rollbackState)
+            setLikes(computeDisplayLikes(rollbackState))
+            syncLikeStorage(likeKey, rollbackState)
+            setLikeError('操作未同步，请稍后重试')
+            if (errorTimerRef.current) clearTimeout(errorTimerRef.current)
+            errorTimerRef.current = setTimeout(() => {
+              if (mountedRef.current) setLikeError(null)
+            }, 3000)
+          }
+        })
     }, 500)
   }
 
-  const handleCopy = () => {
-    if (typeof window !== 'undefined') {
-      const shareText = title ? `${title} · ${window.location.href}` : window.location.href
-      navigator.clipboard.writeText(shareText)
+  const handleCopy = async () => {
+    if (typeof window === 'undefined' || !navigator.clipboard?.writeText) {
+      return
+    }
+    const shareText = title ? `${title} · ${window.location.href}` : window.location.href
+    try {
+      await navigator.clipboard.writeText(shareText)
+      if (!mountedRef.current) return
       setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current)
+      copyTimerRef.current = setTimeout(() => {
+        if (mountedRef.current) setCopied(false)
+      }, 2000)
+    } catch (err) {
+      console.error('复制链接失败', err)
     }
   }
 
@@ -135,6 +218,12 @@ export default function ArticleInteractions({
             </>
           )}
         </button>
+
+        {likeError && (
+          <span role="status" className="text-xs text-rose-500 font-medium">
+            {likeError}
+          </span>
+        )}
       </div>
     </div>
   )

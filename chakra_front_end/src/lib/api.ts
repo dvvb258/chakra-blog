@@ -62,9 +62,9 @@ interface RawArticleData {
   category?: string
   tags?: string[]
   author?: string
-  readingTime?: number
-  views?: number
-  likes?: number
+  readingTime?: number | string
+  views?: number | string
+  likes?: number | string
   pinned?: boolean
   isPinned?: boolean
   createdAt?: string
@@ -143,6 +143,11 @@ async function apiFetch<T>(url: string, init?: RequestInit, allowNotFound = fals
 
 // ---- 数据标准化 ----
 
+function toSafeNonNegativeInt(value: unknown, fallback = 0): number {
+  const num = Number(value)
+  return Number.isFinite(num) && num >= 0 ? Math.floor(num) : fallback
+}
+
 /**
  * 标准化文章数据格式，对齐后端数据与界面渲染规范
  */
@@ -167,7 +172,7 @@ export function normalizeArticle(item: RawArticleData): Article {
     }
   }
 
-  const readMinutes = item.readingTime || 0
+  const readMinutes = toSafeNonNegativeInt(item.readingTime, 0)
   const formattedReadTime = readMinutes > 0 ? `${readMinutes} 分钟` : '3 分钟'
 
   return {
@@ -183,8 +188,8 @@ export function normalizeArticle(item: RawArticleData): Article {
     author: item.author || defaultAuthor(),
     readingTime: readMinutes,
     readTime: formattedReadTime,
-    views: item.views || 0,
-    likes: item.likes || 0,
+    views: toSafeNonNegativeInt(item.views, 0),
+    likes: toSafeNonNegativeInt(item.likes, 0),
     pinned: Boolean(item.pinned || item.isPinned || false),
     createdAt: typeof item.createdAt === 'string' ? item.createdAt.split('T')[0] : '',
     seriesId: item.seriesId || null,

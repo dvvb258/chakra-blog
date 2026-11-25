@@ -244,6 +244,7 @@ async function ArticleMainContentAsync({ id }: { id: string }) {
 
             {/* 点赞与交互栏 */}
             <ArticleInteractions
+              key={article.id}
               articleId={article.id}
               initialLikes={article.likes}
               title={article.title}
