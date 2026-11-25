@@ -11,6 +11,7 @@ import {
   Popconfirm,
   Row,
   Space,
+  Spin,
   Tabs,
   Tag,
   Tooltip,
@@ -159,6 +160,50 @@ function setOrDelete(target: Overrides, path: string[], value: unknown): void {
   setOrDelete(target[head] as Overrides, rest, value)
 }
 
+/**
+ * 将可视化表单字段合并进底层覆盖 JSON 对象，空值字段从覆盖对象中移除以回退系统默认
+ */
+function mergeFormValuesToOverrides(base: Overrides, values: FormValues): Overrides {
+  const merged: Overrides = JSON.parse(JSON.stringify(base))
+
+  setOrDelete(merged, ['themePreset'], values.themePreset)
+  setOrDelete(merged, ['name'], values.name?.trim())
+  setOrDelete(merged, ['siteName'], values.siteName?.trim())
+  setOrDelete(merged, ['title'], values.title?.trim())
+  setOrDelete(merged, ['description'], values.description?.trim())
+  setOrDelete(
+    merged,
+    ['keywords'],
+    values.keywords
+      ?.split(',')
+      .map((item) => item.trim())
+      .filter(Boolean)
+  )
+  setOrDelete(merged, ['url'], values.url?.trim())
+  setOrDelete(merged, ['avatar'], values.avatar?.trim())
+  setOrDelete(merged, ['defaultCover'], values.defaultCover?.trim())
+  setOrDelete(merged, ['authorSubtitle'], values.authorSubtitle?.trim())
+  setOrDelete(merged, ['authorIntro'], values.authorIntro?.trim())
+  setOrDelete(merged, ['quote'], values.quote?.trim())
+  setOrDelete(merged, ['footerMotto'], values.footerMotto?.trim())
+  setOrDelete(merged, ['poweredBy'], values.poweredBy?.trim())
+  setOrDelete(merged, ['socials', 'github'], values.github?.trim())
+  setOrDelete(merged, ['socials', 'email'], values.email?.trim())
+
+  return merged
+}
+
+/**
+ * 解析高级配置 JSON，必须为普通对象
+ */
+function parseJsonObject(raw: string): Overrides {
+  const parsed = JSON.parse(raw || '{}')
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error('配置必须是 JSON 对象')
+  }
+  return parsed as Overrides
+}
+
 export default function SiteSettings() {
   const { message } = App.useApp()
   const [form] = Form.useForm<FormValues>()
@@ -178,6 +223,12 @@ export default function SiteSettings() {
   const [uploadingCover, setUploadingCover] = useState(false)
   const avatarInputRef = useRef<HTMLInputElement>(null)
   const coverInputRef = useRef<HTMLInputElement>(null)
+  const handleSaveRef = useRef<() => void>(() => {})
+
+  const updateFormField = <K extends keyof FormValues>(field: K, value: FormValues[K]) => {
+    form.setFieldValue(field, value)
+    setCurrentFormValues((prev) => ({ ...prev, [field]: value }))
+  }
 
   // 加载当前站点设置覆盖项
   const loadSettings = async () => {
@@ -201,20 +252,22 @@ export default function SiteSettings() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // 快捷键 Ctrl+S / Cmd+S 触发保存
+  // 快捷键 Ctrl+S / Cmd+S 触发保存（仅挂载一次监听）
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
         event.preventDefault()
-        handleSave()
+        handleSaveRef.current()
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  })
+  }, [])
 
   // 保存设置到后端
   const handleSave = async () => {
+    if (loading || saving) return
+
     let values: FormValues
     try {
       values = await form.validateFields()
@@ -226,42 +279,14 @@ export default function SiteSettings() {
 
     let base: Overrides
     try {
-      const parsed = JSON.parse(jsonText || '{}')
-      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-        throw new Error('配置必须是 JSON 对象')
-      }
-      base = parsed as Overrides
+      base = parseJsonObject(jsonText)
     } catch {
       message.error('高级 JSON 格式不正确，请切换到【高级配置】排查后再保存')
       setActiveTab('advanced')
       return
     }
 
-    const merged: Overrides = JSON.parse(JSON.stringify(base))
-
-    setOrDelete(merged, ['themePreset'], values.themePreset)
-    setOrDelete(merged, ['name'], values.name?.trim())
-    setOrDelete(merged, ['siteName'], values.siteName?.trim())
-    setOrDelete(merged, ['title'], values.title?.trim())
-    setOrDelete(merged, ['description'], values.description?.trim())
-    setOrDelete(
-      merged,
-      ['keywords'],
-      values.keywords
-        ?.split(',')
-        .map((item) => item.trim())
-        .filter(Boolean)
-    )
-    setOrDelete(merged, ['url'], values.url?.trim())
-    setOrDelete(merged, ['avatar'], values.avatar?.trim())
-    setOrDelete(merged, ['defaultCover'], values.defaultCover?.trim())
-    setOrDelete(merged, ['authorSubtitle'], values.authorSubtitle?.trim())
-    setOrDelete(merged, ['authorIntro'], values.authorIntro?.trim())
-    setOrDelete(merged, ['quote'], values.quote?.trim())
-    setOrDelete(merged, ['footerMotto'], values.footerMotto?.trim())
-    setOrDelete(merged, ['poweredBy'], values.poweredBy?.trim())
-    setOrDelete(merged, ['socials', 'github'], values.github?.trim())
-    setOrDelete(merged, ['socials', 'email'], values.email?.trim())
+    const merged = mergeFormValuesToOverrides(base, values)
 
     setSaving(true)
     try {
@@ -275,6 +300,7 @@ export default function SiteSettings() {
       setSaving(false)
     }
   }
+  handleSaveRef.current = handleSave
 
   // 恢复所有配置为代码默认值（清空覆盖项）
   const handleReset = async () => {
@@ -303,16 +329,14 @@ export default function SiteSettings() {
   const handleFillDefault = (field: keyof FormValues) => {
     const defaultValue = DEFAULT_SITE_SETTINGS[field as keyof typeof DEFAULT_SITE_SETTINGS]
     if (defaultValue !== undefined) {
-      form.setFieldValue(field, defaultValue)
-      setCurrentFormValues({ ...currentFormValues, [field]: defaultValue })
+      updateFormField(field, defaultValue as FormValues[typeof field])
       message.info(`已填入【${field}】的系统默认值`)
     }
   }
 
   // 单字段快捷操作：恢复该项默认（清空为 undefined）
   const handleRestoreField = (field: keyof FormValues) => {
-    form.setFieldValue(field, undefined)
-    setCurrentFormValues({ ...currentFormValues, [field]: undefined })
+    updateFormField(field, undefined)
     message.info(`已恢复【${field}】为系统默认值`)
   }
 
@@ -323,8 +347,7 @@ export default function SiteSettings() {
     setUploadingAvatar(true)
     try {
       const res = await uploadMedia(file)
-      form.setFieldValue('avatar', res.url)
-      setCurrentFormValues({ ...currentFormValues, avatar: res.url })
+      updateFormField('avatar', res.url)
       message.success('头像上传成功')
     } catch (err) {
       message.error(err instanceof Error ? err.message : '头像上传失败')
@@ -341,8 +364,7 @@ export default function SiteSettings() {
     setUploadingCover(true)
     try {
       const res = await uploadMedia(file)
-      form.setFieldValue('defaultCover', res.url)
-      setCurrentFormValues({ ...currentFormValues, defaultCover: res.url })
+      updateFormField('defaultCover', res.url)
       message.success('封面图上传成功')
     } catch (err) {
       message.error(err instanceof Error ? err.message : '封面图上传失败')
@@ -354,37 +376,15 @@ export default function SiteSettings() {
 
   // 从当前表单逆向同步生成格式化 JSON
   const handleSyncFormToJson = () => {
-    const values = form.getFieldsValue()
-    let base: Overrides = {}
+    const values = form.getFieldsValue(true)
+    let base: Overrides
     try {
-      base = JSON.parse(jsonText || '{}')
+      base = parseJsonObject(jsonText)
     } catch {
-      base = {}
+      message.error('当前 JSON 格式不正确，请先修复后再从表单同步')
+      return
     }
-    const merged = JSON.parse(JSON.stringify(base))
-    setOrDelete(merged, ['themePreset'], values.themePreset)
-    setOrDelete(merged, ['name'], values.name?.trim())
-    setOrDelete(merged, ['siteName'], values.siteName?.trim())
-    setOrDelete(merged, ['title'], values.title?.trim())
-    setOrDelete(merged, ['description'], values.description?.trim())
-    setOrDelete(
-      merged,
-      ['keywords'],
-      values.keywords
-        ?.split(',')
-        .map((item) => item.trim())
-        .filter(Boolean)
-    )
-    setOrDelete(merged, ['url'], values.url?.trim())
-    setOrDelete(merged, ['avatar'], values.avatar?.trim())
-    setOrDelete(merged, ['defaultCover'], values.defaultCover?.trim())
-    setOrDelete(merged, ['authorSubtitle'], values.authorSubtitle?.trim())
-    setOrDelete(merged, ['authorIntro'], values.authorIntro?.trim())
-    setOrDelete(merged, ['quote'], values.quote?.trim())
-    setOrDelete(merged, ['footerMotto'], values.footerMotto?.trim())
-    setOrDelete(merged, ['poweredBy'], values.poweredBy?.trim())
-    setOrDelete(merged, ['socials', 'github'], values.github?.trim())
-    setOrDelete(merged, ['socials', 'email'], values.email?.trim())
+    const merged = mergeFormValuesToOverrides(base, values)
 
     setJsonText(JSON.stringify(merged, null, 2))
     message.success('已从当前表单生成完整覆盖项 JSON')
@@ -574,22 +574,24 @@ export default function SiteSettings() {
       {/* 主布局：左侧表单配置区 + 右侧所见即所得实时效果预览卡片 */}
       <div className={styles.layoutRow}>
         <div className={styles.formCol}>
-          <Card className={styles.settingsCard} loading={loading}>
-            <Form
-              form={form}
-              layout="vertical"
-              disabled={saving}
-              onValuesChange={handleValuesChange}
-            >
-              <Tabs
-                activeKey={activeTab}
-                onChange={setActiveTab}
-                type="line"
-                items={[
-                  // Tab 1: 主题风格与品牌形象
-                  {
-                    key: 'theme',
-                    label: (
+          <Card className={styles.settingsCard}>
+            <Spin spinning={loading}>
+              <Form
+                form={form}
+                layout="vertical"
+                disabled={saving}
+                onValuesChange={handleValuesChange}
+              >
+                <Tabs
+                  activeKey={activeTab}
+                  onChange={setActiveTab}
+                  type="line"
+                  items={[
+                    // Tab 1: 主题风格与品牌形象
+                    {
+                      key: 'theme',
+                      forceRender: true,
+                      label: (
                       <span>
                         <FireOutlined /> 风格与形象
                       </span>
@@ -613,10 +615,7 @@ export default function SiteSettings() {
                               className={`${styles.themeOptionCard} ${
                                 !isAnimeTheme ? styles.themeOptionActive : ''
                               }`}
-                              onClick={() => {
-                                form.setFieldValue('themePreset', 'tech')
-                                setCurrentFormValues({ ...currentFormValues, themePreset: 'tech' })
-                              }}
+                              onClick={() => updateFormField('themePreset', 'tech')}
                             >
                               <div className={styles.themeCardTop}>
                                 <div className={styles.themeTitle}>极简技术风 (Tech)</div>
@@ -643,10 +642,7 @@ export default function SiteSettings() {
                               className={`${styles.themeOptionCard} ${
                                 isAnimeTheme ? styles.themeOptionActiveAnime : ''
                               }`}
-                              onClick={() => {
-                                form.setFieldValue('themePreset', 'anime')
-                                setCurrentFormValues({ ...currentFormValues, themePreset: 'anime' })
-                              }}
+                              onClick={() => updateFormField('themePreset', 'anime')}
                             >
                               <div className={styles.themeCardTop}>
                                 <div className={styles.themeTitle}>木叶火影风 (Anime)</div>
@@ -717,13 +713,7 @@ export default function SiteSettings() {
                             <Button
                               type="text"
                               size="small"
-                              onClick={() => {
-                                form.setFieldValue('avatar', '/images/naruto/akatsuki-avatar.webp')
-                                setCurrentFormValues({
-                                  ...currentFormValues,
-                                  avatar: '/images/naruto/akatsuki-avatar.webp',
-                                })
-                              }}
+                              onClick={() => updateFormField('avatar', '/images/naruto/akatsuki-avatar.webp')}
                             >
                               火影预设
                             </Button>
@@ -766,13 +756,7 @@ export default function SiteSettings() {
                             <Button
                               type="text"
                               size="small"
-                              onClick={() => {
-                                form.setFieldValue('defaultCover', '/images/naruto/cover-konoha.webp')
-                                setCurrentFormValues({
-                                  ...currentFormValues,
-                                  defaultCover: '/images/naruto/cover-konoha.webp',
-                                })
-                              }}
+                              onClick={() => updateFormField('defaultCover', '/images/naruto/cover-konoha.webp')}
                             >
                               木叶预设
                             </Button>
@@ -785,6 +769,7 @@ export default function SiteSettings() {
                   // Tab 2: 基础信息与 SEO
                   {
                     key: 'basic',
+                    forceRender: true,
                     label: (
                       <span>
                         <GlobalOutlined /> 基础与 SEO
@@ -890,6 +875,7 @@ export default function SiteSettings() {
                   // Tab 3: 博主文案与名片
                   {
                     key: 'author',
+                    forceRender: true,
                     label: (
                       <span>
                         <UserOutlined /> 博主文案与名片
@@ -1009,6 +995,7 @@ export default function SiteSettings() {
                   // Tab 4: 开发者高级 JSON
                   {
                     key: 'advanced',
+                    forceRender: true,
                     label: (
                       <span>
                         <CodeOutlined /> 高级配置 (JSON)
@@ -1084,6 +1071,7 @@ export default function SiteSettings() {
                 ]}
               />
             </Form>
+            </Spin>
           </Card>
         </div>
 
