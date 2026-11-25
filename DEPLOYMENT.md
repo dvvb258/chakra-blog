@@ -47,8 +47,8 @@ docker compose up -d --build
 ### 3. 服务端点与凭据
 - **博客展示端**：`http://服务器IP:3000`
 - **管理后台**：`http://服务器IP:3101`
-- **后端 Swagger 文档**：`http://服务器IP:5000/swagger`
-- **Hangfire 调度看板**：`http://服务器IP:5000/hangfire`
+- **后端 Swagger 文档**（生产默认关闭，在 `.env` 设置 `SWAGGER_ENABLED=true` 后可访问）：`http://服务器IP:5000/swagger`
+- **Hangfire 调度看板**（生产默认关闭，在 `.env` 设置 `HANGFIRE_DASHBOARD_ENABLED=true` 后可访问）：`http://服务器IP:5000/hangfire`
 - **系统健康检查**：`http://服务器IP:5000/health`
 - **初始超级管理员凭据**：
   - 用户名：`admin`

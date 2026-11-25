@@ -64,9 +64,9 @@ services:
       Identity__GitHub__ClientId: "${GITHUB_CLIENT_ID:-}"
       Identity__GitHub__ClientSecret: "${GITHUB_CLIENT_SECRET:-}"
       Identity__GitHub__RedirectUri: "${GITHUB_REDIRECT_URI:-http://localhost:3101/login}"
-      # 运维控制面板开关与认证凭据
-      Swagger__Enabled: "${SWAGGER_ENABLED:-true}"
-      Hangfire__Dashboard__Enabled: "${HANGFIRE_DASHBOARD_ENABLED:-true}"
+      # 运维控制面板开关与认证凭据（生产环境默认关闭，如需开启请在 .env 中设为 true）
+      Swagger__Enabled: "${SWAGGER_ENABLED:-false}"
+      Hangfire__Dashboard__Enabled: "${HANGFIRE_DASHBOARD_ENABLED:-false}"
       Hangfire__Dashboard__Username: "${HANGFIRE_USERNAME:-admin}"
       Hangfire__Dashboard__Password: "${HANGFIRE_PASSWORD:-AdminPassword123!}"
       # 日志保留周期（天，默认 60 天；超过时每日自动清理）

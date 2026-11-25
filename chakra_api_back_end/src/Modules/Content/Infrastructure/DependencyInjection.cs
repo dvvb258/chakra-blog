@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using OpenAI;
 using StackExchange.Redis;
@@ -158,7 +159,11 @@ public static class DependencyInjection
     public static IApplicationBuilder UseContentModule(this IApplicationBuilder app)
     {
         var configuration = app.ApplicationServices.GetRequiredService<IConfiguration>();
-        if (configuration.GetValue<bool>("Hangfire:Dashboard:Enabled", true))
+        var environment = app.ApplicationServices.GetRequiredService<IHostEnvironment>();
+        var hangfireDashboardEnabled = configuration.GetValue<bool?>("Hangfire:Dashboard:Enabled")
+            ?? environment.IsDevelopment();
+
+        if (hangfireDashboardEnabled)
         {
             var username = configuration["Hangfire:Dashboard:Username"] ?? "admin";
             var password = configuration["Hangfire:Dashboard:Password"] ?? "AdminPassword123!";
