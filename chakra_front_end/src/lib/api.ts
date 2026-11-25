@@ -440,7 +440,12 @@ export async function recordSystemVisit(): Promise<void> {
  * 文章阅读量上报 (/api/stats/articles/:id/view)
  */
 export async function recordArticleView(id: string | number): Promise<void> {
-  await apiFetch(buildUrl(`/stats/articles/${id}/view`), { method: 'POST', cache: 'no-store' })
+  const visitorId = getVisitorId()
+  await apiFetch(buildUrl(`/stats/articles/${id}/view`), {
+    method: 'POST',
+    cache: 'no-store',
+    headers: visitorId ? { 'X-Visitor-Id': visitorId } : undefined,
+  })
 }
 
 /**

@@ -356,11 +356,10 @@ public class ArticlePermissionAndStatusTests
     }
 
     [Fact]
-    public async Task IncrementArticleLike_ShouldIncreaseLikes_AndPreventDuplicateByCache()
+    public async Task IncrementArticleLike_ShouldIncreaseLikes_AndPersistDeduplication()
     {
         // Arrange
         await using var db = CreateInMemoryDbContext();
-        using var cache = new MemoryCache(new MemoryCacheOptions());
         var category = new Category("技术分享");
         db.Categories.Add(category);
 
@@ -376,21 +375,23 @@ public class ArticlePermissionAndStatusTests
         db.Articles.Add(article);
         await db.SaveChangesAsync();
 
-        var handler = new IncrementArticleLikeCommandHandler(db, cache);
+        var handler = new IncrementArticleLikeCommandHandler(db);
 
         // Act 1: 第一次点赞
         await handler.Handle(new IncrementArticleLikeCommand(article.Id, ClientIp: "127.0.0.1", VisitorId: "vid_1"), CancellationToken.None);
 
-        // Assert 1: Likes 变为 1
+        // Assert 1: Likes 变为 1，且写入点赞关系
         var updated = await db.Articles.FindAsync(article.Id);
         updated!.Likes.Should().Be(1);
+        (await db.ArticleLikes.CountAsync()).Should().Be(1);
 
-        // Act 2: 同一访客在防刷有效期内重复调用点赞
+        // Act 2: 同一访客重复调用点赞
         await handler.Handle(new IncrementArticleLikeCommand(article.Id, ClientIp: "127.0.0.1", VisitorId: "vid_1"), CancellationToken.None);
 
-        // Assert 2: 触发幂等防刷，Likes 依然为 1
+        // Assert 2: 持久化幂等生效，Likes 依然为 1
         updated = await db.Articles.FindAsync(article.Id);
         updated!.Likes.Should().Be(1);
+        (await db.ArticleLikes.CountAsync()).Should().Be(1);
 
         // Act 3: 另一个访客点赞
         await handler.Handle(new IncrementArticleLikeCommand(article.Id, ClientIp: "127.0.0.2", VisitorId: "vid_2"), CancellationToken.None);
@@ -398,6 +399,7 @@ public class ArticlePermissionAndStatusTests
         // Assert 3: Likes 变为 2
         updated = await db.Articles.FindAsync(article.Id);
         updated!.Likes.Should().Be(2);
+        (await db.ArticleLikes.CountAsync()).Should().Be(2);
     }
 
     [Fact]
@@ -405,7 +407,6 @@ public class ArticlePermissionAndStatusTests
     {
         // Arrange
         await using var db = CreateInMemoryDbContext();
-        using var cache = new MemoryCache(new MemoryCacheOptions());
         var category = new Category("技术分享");
         db.Categories.Add(category);
 
@@ -421,8 +422,8 @@ public class ArticlePermissionAndStatusTests
         db.Articles.Add(article);
         await db.SaveChangesAsync();
 
-        var incHandler = new IncrementArticleLikeCommandHandler(db, cache);
-        var decHandler = new DecrementArticleLikeCommandHandler(db, cache);
+        var incHandler = new IncrementArticleLikeCommandHandler(db);
+        var decHandler = new DecrementArticleLikeCommandHandler(db);
 
         // 访客点赞
         await incHandler.Handle(new IncrementArticleLikeCommand(article.Id, ClientIp: "127.0.0.1", VisitorId: "vid_1"), CancellationToken.None);
@@ -435,6 +436,7 @@ public class ArticlePermissionAndStatusTests
         // Assert 1: Likes 回退为 0
         updated = await db.Articles.FindAsync(article.Id);
         updated!.Likes.Should().Be(0);
+        (await db.ArticleLikes.CountAsync()).Should().Be(0);
 
         // Act 2: 再次取消点赞（或未点过赞恶意调取消）
         await decHandler.Handle(new DecrementArticleLikeCommand(article.Id, ClientIp: "127.0.0.1", VisitorId: "vid_1"), CancellationToken.None);
@@ -442,5 +444,79 @@ public class ArticlePermissionAndStatusTests
         // Assert 2: 保底非负，Likes 依然为 0
         updated = await db.Articles.FindAsync(article.Id);
         updated!.Likes.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task DecrementArticleLike_WithoutPersistedLike_ShouldNotChangeCounter()
+    {
+        // Arrange
+        await using var db = CreateInMemoryDbContext();
+        var category = new Category("技术分享");
+        db.Categories.Add(category);
+
+        var article = new Article(
+            title: "测试恶意取消点赞文章",
+            content: "正文内容",
+            categoryId: category.Id,
+            author: "测试作者");
+        article.IncrementLikes();
+        article.IncrementLikes();
+        db.Articles.Add(article);
+        await db.SaveChangesAsync();
+
+        var handler = new DecrementArticleLikeCommandHandler(db);
+
+        // Act: 未点过赞的访客直接调用取消点赞
+        await handler.Handle(
+            new DecrementArticleLikeCommand(article.Id, ClientIp: "127.0.0.1", VisitorId: "attacker"),
+            CancellationToken.None);
+
+        // Assert: 无点赞关系时不得扣减
+        var updated = await db.Articles.FindAsync(article.Id);
+        updated!.Likes.Should().Be(2);
+        (await db.ArticleLikes.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task IncrementArticleView_ShouldDeduplicateByVisitorWithinWindow()
+    {
+        // Arrange
+        await using var db = CreateInMemoryDbContext();
+        using var cache = new MemoryCache(new MemoryCacheOptions());
+        var category = new Category("技术分享");
+        db.Categories.Add(category);
+
+        var article = new Article(
+            title: "测试阅读量文章",
+            content: "正文内容",
+            categoryId: category.Id,
+            author: "测试作者");
+        db.Articles.Add(article);
+        await db.SaveChangesAsync();
+
+        var handler = new IncrementArticleViewCommandHandler(db, cache);
+
+        // Act 1: 同一访客首次访问
+        await handler.Handle(
+            new IncrementArticleViewCommand(article.Id, ClientIp: "127.0.0.1", VisitorId: "vid_1"),
+            CancellationToken.None);
+
+        // Act 2: 同一访客在去重窗口内重复访问
+        await handler.Handle(
+            new IncrementArticleViewCommand(article.Id, ClientIp: "127.0.0.1", VisitorId: "vid_1"),
+            CancellationToken.None);
+
+        // Assert: 只计一次
+        var updated = await db.Articles.FindAsync(article.Id);
+        updated!.Views.Should().Be(1);
+
+        // Act 3: 另一访客访问
+        await handler.Handle(
+            new IncrementArticleViewCommand(article.Id, ClientIp: "127.0.0.2", VisitorId: "vid_2"),
+            CancellationToken.None);
+
+        // Assert: 不同访客正常累加
+        updated = await db.Articles.FindAsync(article.Id);
+        updated!.Views.Should().Be(2);
     }
 }

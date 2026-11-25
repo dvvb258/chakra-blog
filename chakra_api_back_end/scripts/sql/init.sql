@@ -83,7 +83,22 @@ CREATE INDEX IF NOT EXISTS ix_articles_pinned_created_at ON articles (is_pinned 
 CREATE INDEX IF NOT EXISTS ix_articles_created_by_user_id ON articles (created_by_user_id);
 CREATE UNIQUE INDEX IF NOT EXISTS ix_articles_source_link ON articles (source_link) WHERE source_link IS NOT NULL;
 
--- 4. 用户表 (users)
+-- 4. 文章点赞关系表 (article_likes)
+CREATE TABLE IF NOT EXISTS article_likes (
+    id BIGINT PRIMARY KEY,
+    article_id BIGINT NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
+    visitor_id VARCHAR(64) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    updated_at TIMESTAMPTZ NULL,
+    version INT NOT NULL DEFAULT 0,
+    is_del BOOLEAN NOT NULL DEFAULT FALSE,
+    deleted_at TIMESTAMPTZ NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS ix_article_likes_article_id_visitor_id
+    ON article_likes (article_id, visitor_id) WHERE is_del = FALSE;
+
+-- 5. 用户表 (users)
 CREATE TABLE IF NOT EXISTS users (
     id BIGINT PRIMARY KEY,
     username VARCHAR(50) NOT NULL,
@@ -107,7 +122,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS ix_users_email ON users (email) WHERE email IS
 CREATE UNIQUE INDEX IF NOT EXISTS ix_users_github_id ON users (github_id) WHERE github_id IS NOT NULL AND is_del = FALSE;
 CREATE INDEX IF NOT EXISTS ix_users_is_del ON users (is_del);
 
--- 5. 刷新令牌表 (refresh_tokens)
+-- 6. 刷新令牌表 (refresh_tokens)
 CREATE TABLE IF NOT EXISTS refresh_tokens (
     id BIGINT PRIMARY KEY,
     user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -127,7 +142,7 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
 CREATE UNIQUE INDEX IF NOT EXISTS ix_refresh_tokens_token ON refresh_tokens (token);
 CREATE INDEX IF NOT EXISTS ix_refresh_tokens_user_id ON refresh_tokens (user_id);
 
--- 6. 操作审计日志表 (audit_logs)
+-- 7. 操作审计日志表 (audit_logs)
 CREATE TABLE IF NOT EXISTS audit_logs (
     id BIGINT PRIMARY KEY,
     user_id BIGINT NULL,
@@ -155,7 +170,7 @@ CREATE INDEX IF NOT EXISTS ix_audit_logs_username ON audit_logs (username);
 CREATE INDEX IF NOT EXISTS ix_audit_logs_is_success ON audit_logs (is_success);
 CREATE INDEX IF NOT EXISTS ix_audit_logs_trace_id ON audit_logs (trace_id);
 
--- 7. 系统未处理异常日志表 (exception_logs)
+-- 8. 系统未处理异常日志表 (exception_logs)
 CREATE TABLE IF NOT EXISTS exception_logs (
     id BIGINT PRIMARY KEY,
     exception_type VARCHAR(200) NOT NULL DEFAULT '',
@@ -180,7 +195,7 @@ CREATE INDEX IF NOT EXISTS ix_exception_logs_created_at ON exception_logs (creat
 CREATE INDEX IF NOT EXISTS ix_exception_logs_exception_type ON exception_logs (exception_type);
 CREATE INDEX IF NOT EXISTS ix_exception_logs_trace_id ON exception_logs (trace_id);
 
--- 8. 角色表 (roles)
+-- 9. 角色表 (roles)
 CREATE TABLE IF NOT EXISTS roles (
     id BIGINT PRIMARY KEY,
     code VARCHAR(30) UNIQUE NOT NULL,
@@ -196,7 +211,7 @@ CREATE TABLE IF NOT EXISTS roles (
 
 CREATE UNIQUE INDEX IF NOT EXISTS ix_roles_code ON roles (code);
 
--- 9. 菜单与权限资源表 (menus)
+-- 10. 菜单与权限资源表 (menus)
 CREATE TABLE IF NOT EXISTS menus (
     id BIGINT PRIMARY KEY,
     parent_id BIGINT NULL,
@@ -217,7 +232,7 @@ CREATE TABLE IF NOT EXISTS menus (
 CREATE INDEX IF NOT EXISTS ix_menus_path ON menus (path);
 CREATE INDEX IF NOT EXISTS ix_menus_sort ON menus (sort);
 
--- 10. 角色与菜单关联映射表 (role_menus)
+-- 11. 角色与菜单关联映射表 (role_menus)
 CREATE TABLE IF NOT EXISTS role_menus (
     id BIGINT PRIMARY KEY,
     role_id BIGINT NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
@@ -231,7 +246,7 @@ CREATE TABLE IF NOT EXISTS role_menus (
 
 CREATE UNIQUE INDEX IF NOT EXISTS ix_role_menus_role_menu ON role_menus (role_id, menu_id);
 
--- 11. 站点设置表 (site_settings)：全站单行 JSON 配置，仅保存对代码默认值的覆盖项
+-- 12. 站点设置表 (site_settings)：全站单行 JSON 配置，仅保存对代码默认值的覆盖项
 CREATE TABLE IF NOT EXISTS site_settings (
     id BIGINT PRIMARY KEY,
     config JSONB NOT NULL DEFAULT '{}'::jsonb,

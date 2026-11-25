@@ -217,6 +217,14 @@ public class Article : Entity, IAggregateRoot
     }
 
     /// <summary>
+    /// 增加文章阅读量
+    /// </summary>
+    public void IncrementViews()
+    {
+        Views++;
+    }
+
+    /// <summary>
     /// 减少文章点赞数（非负保底）
     /// </summary>
     public void DecrementLikes()

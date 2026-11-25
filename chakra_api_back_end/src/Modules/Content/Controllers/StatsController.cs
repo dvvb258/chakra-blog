@@ -32,7 +32,9 @@ public class StatsController : BaseApiController
     [EnableRateLimiting("stats-visit")]
     public async Task<IActionResult> IncrementArticleViewAsync(long id, CancellationToken cancellationToken)
     {
-        await _mediator.Send(new IncrementArticleViewCommand(id), cancellationToken);
+        var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString();
+        var visitorId = Request.Headers["X-Visitor-Id"].FirstOrDefault();
+        await _mediator.Send(new IncrementArticleViewCommand(id, clientIp, visitorId), cancellationToken);
         return Success<object?>(null, "阅读量已更新");
     }
 

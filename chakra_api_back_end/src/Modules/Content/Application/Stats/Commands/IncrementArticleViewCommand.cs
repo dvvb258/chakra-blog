@@ -6,5 +6,8 @@ namespace Content.Application.Stats.Commands;
 /// <summary>
 /// 文章阅读量 +1 命令
 /// </summary>
+/// <param name="ArticleId">文章ID</param>
+/// <param name="ClientIp">客户端IP地址</param>
+/// <param name="VisitorId">前端访客唯一标识</param>
 [SkipAuditLog]
-public record IncrementArticleViewCommand(long ArticleId) : ICommand;
+public record IncrementArticleViewCommand(long ArticleId, string? ClientIp = null, string? VisitorId = null) : ICommand;
