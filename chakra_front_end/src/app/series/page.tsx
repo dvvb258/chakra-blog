@@ -3,12 +3,28 @@ import Link from 'next/link'
 import Image from 'next/image'
 import type { Metadata } from 'next'
 import { getSeriesList, isExternalUrl } from '@/lib/api'
+import { buildCanonicalUrl, buildSiteAlternates, getSiteConfig } from '@/lib/site-config'
 import TacticalLoader from '@/components/loading/TacticalLoader'
 import { Layers, ArrowRight } from 'lucide-react'
 
-export const metadata: Metadata = {
-  title: '专题专栏',
-  description: '按体系梳理的系统性技术专题与深度实践指南。',
+const SERIES_DESCRIPTION = '按体系梳理的系统性技术专题与深度实践指南。'
+
+export async function generateMetadata(): Promise<Metadata> {
+  const config = await getSiteConfig()
+
+  return {
+    title: '专题专栏',
+    description: SERIES_DESCRIPTION,
+    alternates: buildSiteAlternates(config, '/series'),
+    openGraph: {
+      type: 'website',
+      locale: 'zh_CN',
+      siteName: config.siteName,
+      title: '专题专栏',
+      description: SERIES_DESCRIPTION,
+      url: buildCanonicalUrl(config, '/series'),
+    },
+  }
 }
 
 // 强制运行时动态获取，避免构建时因为内网不可达打包出空白页面

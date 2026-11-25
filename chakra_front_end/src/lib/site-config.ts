@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import {
   applySiteConfig,
   defaultSiteConfig,
@@ -96,14 +97,45 @@ async function fetchSiteConfig(): Promise<SiteConfig> {
  * 站点地址容错：后台误填非绝对 HTTP(S) 地址时回退默认值，避免 new URL() 抛错导致整页 500
  */
 function normalizeUrl(config: SiteConfig): SiteConfig {
+  const rawUrl = typeof config.url === 'string' ? config.url.trim().replace(/\/+$/, '') : ''
   try {
-    const parsed = new URL(config.url)
+    const parsed = new URL(rawUrl)
     if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
-      return config
+      return { ...config, url: rawUrl }
     }
   } catch {
     // 忽略解析异常，走默认值
   }
 
-  return { ...config, url: defaultSiteConfig.url }
+  return { ...config, url: defaultSiteConfig.url.replace(/\/+$/, '') }
+}
+
+/**
+ * 基于站点基准地址拼接标准规范 URL（与 sitemap.xml 保持一致，无多余尾斜杠）
+ */
+export function buildCanonicalUrl(config: SiteConfig, path = '/'): string {
+  const baseUrl = config.url.replace(/\/+$/, '')
+  const normalizedPath = path === '/' ? '' : `/${path.replace(/^\/+/, '')}`
+  return `${baseUrl}${normalizedPath}`
+}
+
+/**
+ * 构建页面级 alternates 元数据（保留全站 RSS 声明；仅在传入当前页面路径时设置 canonical，避免子页面误继承首页）
+ */
+export function buildSiteAlternates(
+  config: SiteConfig,
+  canonicalPath?: string
+): NonNullable<Metadata['alternates']> {
+  const types: NonNullable<Metadata['alternates']>['types'] = {
+    'application/rss+xml': `${config.url.replace(/\/+$/, '')}/feed.xml`,
+  }
+
+  if (!canonicalPath) {
+    return { types }
+  }
+
+  return {
+    canonical: buildCanonicalUrl(config, canonicalPath),
+    types,
+  }
 }

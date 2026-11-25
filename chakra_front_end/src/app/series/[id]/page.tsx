@@ -4,9 +4,9 @@ import Image from 'next/image'
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import { getSeriesById, isExternalUrl } from '@/lib/api'
+import { buildCanonicalUrl, buildSiteAlternates, getSiteConfig } from '@/lib/site-config'
 import TacticalLoader from '@/components/loading/TacticalLoader'
 import { Clock, ArrowRight, ArrowLeft, ChevronRight } from 'lucide-react'
-import { siteConfig } from '@/config/site'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -14,17 +14,25 @@ interface PageProps {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params
+  const config = await getSiteConfig()
+
   try {
     const series = await getSeriesById(id)
     if (!series) return { title: '专栏未找到' }
 
+    const canonicalUrl = buildCanonicalUrl(config, `/series/${series.id}`)
+
     return {
-      title: `${series.title} · 专题专栏 · ${siteConfig.name}`,
+      title: `${series.title} · 专题专栏`,
       description: series.description,
+      alternates: buildSiteAlternates(config, `/series/${series.id}`),
       openGraph: {
         title: series.title,
         description: series.description,
         type: 'website',
+        locale: 'zh_CN',
+        siteName: config.siteName,
+        url: canonicalUrl,
         images: [{ url: series.coverImage }],
       },
     }

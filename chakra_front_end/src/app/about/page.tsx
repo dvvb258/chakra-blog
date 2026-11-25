@@ -2,12 +2,28 @@ import React from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import type { Metadata } from 'next'
-import { siteConfig } from '@/config/site'
+import { buildCanonicalUrl, buildSiteAlternates, getSiteConfig } from '@/lib/site-config'
 import { Github, Mail, Flame, ShieldCheck, Zap, Mountain, Wind, Sparkles, Waves } from 'lucide-react'
 
-export const metadata: Metadata = {
-  title: `关于博主 · ${siteConfig.name}`,
-  description: siteConfig.description,
+export const dynamic = 'force-dynamic'
+
+export async function generateMetadata(): Promise<Metadata> {
+  const config = await getSiteConfig()
+  const canonicalUrl = buildCanonicalUrl(config, '/about')
+
+  return {
+    title: '关于博主',
+    description: config.description,
+    alternates: buildSiteAlternates(config, '/about'),
+    openGraph: {
+      type: 'profile',
+      locale: 'zh_CN',
+      siteName: config.siteName,
+      title: '关于博主',
+      description: config.description,
+      url: canonicalUrl,
+    },
+  }
 }
 
 /**
@@ -22,8 +38,9 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   Sparkles,
 }
 
-export default function AboutPage() {
-  const aboutConfig = siteConfig.about
+export default async function AboutPage() {
+  const config = await getSiteConfig()
+  const aboutConfig = config.about
   const skillList = aboutConfig.skills
 
   return (
@@ -47,8 +64,8 @@ export default function AboutPage() {
           {/* 头像 */}
           <div className="relative w-28 h-28 rounded-full overflow-hidden ring-4 ring-theme-primary/30 shadow-xl flex-shrink-0">
             <Image
-              src={siteConfig.avatar}
-              alt={siteConfig.name}
+              src={config.avatar}
+              alt={config.name}
               fill
               className="object-cover"
               priority
@@ -59,15 +76,15 @@ export default function AboutPage() {
           <div className="text-center sm:text-left flex-1">
             <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5">
               <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
-                {siteConfig.name}
+                {config.name}
               </h1>
               <span className="text-xs px-2.5 py-0.5 rounded-md bg-theme-surface-hover border border-theme-border/80 text-theme-primary font-mono font-bold">
-                {siteConfig.authorSubtitle}
+                {config.authorSubtitle}
               </span>
             </div>
 
             <p className="mt-3 text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed max-w-xl">
-              {siteConfig.authorIntro}
+              {config.authorIntro}
             </p>
           </div>
         </div>
@@ -77,15 +94,15 @@ export default function AboutPage() {
           <Flame className="w-4 h-4 text-theme-primary fill-theme-primary/20 flex-shrink-0 mt-0.5 sm:mt-0" />
           <p className="text-xs sm:text-sm font-mono text-slate-700 dark:text-slate-300 leading-relaxed">
             <span className="font-bold text-theme-primary">座右铭：</span>
-            {siteConfig.wisdom}
+            {config.wisdom}
           </p>
         </div>
 
         {/* 外部联系按钮 */}
         <div className="mt-6 flex flex-wrap items-center justify-center sm:justify-start gap-3">
-          {siteConfig.socials.github ? (
+          {config.socials.github ? (
             <Link
-              href={siteConfig.socials.github}
+              href={config.socials.github}
               target="_blank"
               rel="noopener noreferrer"
               className="px-4 py-2 bg-theme-surface hover:bg-theme-surface-hover text-slate-700 dark:text-slate-200 hover:text-theme-primary text-xs font-bold rounded-xl border border-theme-border/60 hover:border-theme-primary transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
@@ -94,9 +111,9 @@ export default function AboutPage() {
               <span>GitHub 开源代码库</span>
             </Link>
           ) : null}
-          {siteConfig.socials.email ? (
+          {config.socials.email ? (
             <a
-              href={`mailto:${siteConfig.socials.email.replace(/^mailto:/i, '')}`}
+              href={`mailto:${config.socials.email.replace(/^mailto:/i, '')}`}
               className="px-4 py-2 bg-theme-surface hover:bg-theme-surface-hover text-slate-700 dark:text-slate-200 hover:text-theme-primary text-xs font-bold rounded-xl border border-theme-border/60 hover:border-theme-primary transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
             >
               <Mail className="w-4 h-4" />

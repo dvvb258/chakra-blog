@@ -8,7 +8,7 @@ import RouteLoadingIndicator from '@/components/loading/RouteLoadingIndicator'
 import SiteTracker from '@/components/analytics/SiteTracker'
 import BackToTop from '@/components/ui/BackToTop'
 import { ThemeProvider } from '@/components/theme/ThemeProvider'
-import { getSiteConfig } from '@/lib/site-config'
+import { buildSiteAlternates, getSiteConfig } from '@/lib/site-config'
 import { serializeJsonLd } from '@/lib/structuredData'
 
 export const dynamic = 'force-dynamic'
@@ -38,12 +38,7 @@ export async function generateMetadata(): Promise<Metadata> {
     authors: [{ name: config.name }],
     creator: config.name,
     metadataBase: new URL(config.url),
-    alternates: {
-      canonical: config.url,
-      types: {
-        'application/rss+xml': `${config.url.replace(/\/$/, '')}/feed.xml`,
-      },
-    },
+    alternates: buildSiteAlternates(config),
     openGraph: {
       type: 'website',
       locale: 'zh_CN',

@@ -1,13 +1,29 @@
 import React, { Suspense } from 'react'
 import type { Metadata } from 'next'
 import { getArticles, getCategories } from '@/lib/api'
+import { buildCanonicalUrl, buildSiteAlternates, getSiteConfig } from '@/lib/site-config'
 import ArticleListClient from '@/components/articles/ArticleListClient'
 import TacticalLoader from '@/components/loading/TacticalLoader'
 import { BookOpen } from 'lucide-react'
 
-export const metadata: Metadata = {
-  title: '全部文章归档',
-  description: '浏览关于 .NET、架构设计、云原生与AI Agent的全部技术文章与思考。',
+const ARTICLES_DESCRIPTION = '浏览关于 .NET、架构设计、云原生与AI Agent的全部技术文章与思考。'
+
+export async function generateMetadata(): Promise<Metadata> {
+  const config = await getSiteConfig()
+
+  return {
+    title: '全部文章归档',
+    description: ARTICLES_DESCRIPTION,
+    alternates: buildSiteAlternates(config, '/articles'),
+    openGraph: {
+      type: 'website',
+      locale: 'zh_CN',
+      siteName: config.siteName,
+      title: '全部文章归档',
+      description: ARTICLES_DESCRIPTION,
+      url: buildCanonicalUrl(config, '/articles'),
+    },
+  }
 }
 
 type ArticlesPageProps = {

@@ -1,18 +1,36 @@
 import React from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
+import type { Metadata } from 'next'
 import { ArrowUpRight, BookOpen, Eye, Calendar, Clock } from 'lucide-react'
 import HeroSection from '@/components/home/HeroSection'
 import { getArticles, getCategories, isExternalUrl } from '@/lib/api'
-import { siteConfig } from '@/config/site'
+import { buildCanonicalUrl, buildSiteAlternates, getSiteConfig } from '@/lib/site-config'
 import { formatReadingTime } from '@/lib/reading'
 import { serializeJsonLd } from '@/lib/structuredData'
 
 // 强制运行时动态渲染，避免构建期因内网不可达打包出空白死页面
 export const dynamic = 'force-dynamic'
 
+export async function generateMetadata(): Promise<Metadata> {
+  const config = await getSiteConfig()
+
+  return {
+    alternates: buildSiteAlternates(config, '/'),
+    openGraph: {
+      type: 'website',
+      locale: 'zh_CN',
+      siteName: config.siteName,
+      title: config.title,
+      description: config.description,
+      url: buildCanonicalUrl(config, '/'),
+    },
+  }
+}
+
 export default async function HomePage() {
-  const [articlesRes, categories] = await Promise.all([
+  const [config, articlesRes, categories] = await Promise.all([
+    getSiteConfig(),
     getArticles({ pageSize: 6 }),
     getCategories(),
   ])
@@ -22,16 +40,16 @@ export default async function HomePage() {
   const websiteJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
-    name: siteConfig.siteName,
-    url: siteConfig.url,
-    description: siteConfig.title,
+    name: config.siteName,
+    url: config.url,
+    description: config.title,
     author: {
       '@type': 'Person',
-      name: siteConfig.name,
+      name: config.name,
     },
   }
 
-  const homeConfig = siteConfig.home
+  const homeConfig = config.home
 
   return (
     <div className="ba-home">

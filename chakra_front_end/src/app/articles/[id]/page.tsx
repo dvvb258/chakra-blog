@@ -21,7 +21,7 @@ import ArticleNavigation from '@/components/articles/ArticleNavigation'
 import ReadingProgressBar from '@/components/ui/ReadingProgressBar'
 import { extractHeadings } from '@/lib/markdown'
 import { siteConfig } from '@/config/site'
-import { getSiteConfig } from '@/lib/site-config'
+import { buildCanonicalUrl, buildSiteAlternates, getSiteConfig } from '@/lib/site-config'
 import { serializeJsonLd } from '@/lib/structuredData'
 
 interface PageProps {
@@ -36,22 +36,28 @@ interface PageProps {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params
   // 确保站点配置已就绪（命中缓存时无额外网络开销），避免冷启动时读到默认站名/封面
-  await getSiteConfig()
+  const config = await getSiteConfig()
 
   try {
     const article = await getArticleById(id)
     if (!article) return { title: '文章未找到' }
 
+    const canonicalUrl = buildCanonicalUrl(config, `/articles/${article.id}`)
+
     return {
-      title: `${article.title} · ${siteConfig.name}`,
+      title: article.title,
       description: article.summary,
       keywords: article.tags,
+      alternates: buildSiteAlternates(config, `/articles/${article.id}`),
       openGraph: {
         title: article.title,
         description: article.summary,
         type: 'article',
+        locale: 'zh_CN',
+        siteName: config.siteName,
+        url: canonicalUrl,
         publishedTime: article.createdAt,
-        authors: [article.author || siteConfig.name],
+        authors: [article.author || config.name],
         images: [{ url: resolveCoverImage(article.coverImage) }],
       },
     }
@@ -120,7 +126,8 @@ async function ArticleRecommendationsAsync({ id }: { id: string }) {
  * 核心文章正文异步流式组件
  */
 async function ArticleMainContentAsync({ id }: { id: string }) {
-  const [article, neighbors] = await Promise.all([
+  const [config, article, neighbors] = await Promise.all([
+    getSiteConfig(),
     getArticleById(id),
     getArticleNeighbors(id),
   ])
@@ -130,24 +137,30 @@ async function ArticleMainContentAsync({ id }: { id: string }) {
   }
 
   const tocItems = extractHeadings(article.content)
+  const canonicalUrl = buildCanonicalUrl(config, `/articles/${article.id}`)
 
   const articleJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'BlogPosting',
     headline: article.title,
     description: article.summary,
+    url: canonicalUrl,
+    mainEntityOfPage: {
+      '@type': 'WebPage',
+      '@id': canonicalUrl,
+    },
     image: resolveCoverImage(article.coverImage),
     datePublished: article.createdAt,
     author: {
       '@type': 'Person',
-      name: article.author || siteConfig.name,
+      name: article.author || config.name,
     },
     publisher: {
       '@type': 'Organization',
-      name: siteConfig.name,
+      name: config.name,
       logo: {
         '@type': 'ImageObject',
-        url: siteConfig.avatar,
+        url: config.avatar,
       },
     },
   }
